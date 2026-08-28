@@ -1,0 +1,8 @@
+# Local deployment state
+.env
+.cache/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+validation-results/

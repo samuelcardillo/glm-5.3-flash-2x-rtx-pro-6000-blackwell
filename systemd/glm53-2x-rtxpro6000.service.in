@@ -1,0 +1,17 @@
+[Unit]
+Description=GLM-5.3 Flash EXL3/TR3 on 2x RTX PRO 6000 Blackwell
+
+[Service]
+Type=simple
+Environment=ENV_FILE=@ENV_FILE@
+ExecStartPre=/usr/bin/docker info
+ExecStart=@REPO_DIR@/scripts/serve.sh
+ExecStop=-@REPO_DIR@/scripts/stop.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=infinity
+TimeoutStopSec=90
+KillSignal=SIGINT
+
+[Install]
+WantedBy=default.target

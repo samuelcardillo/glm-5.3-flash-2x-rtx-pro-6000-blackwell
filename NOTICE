@@ -1,0 +1,17 @@
+GLM-5.3 Flash on 2x RTX PRO 6000 Blackwell integration recipe
+Copyright 2026 Samuel Cardillo
+
+This repository includes integration material adapted from or designed for use
+with third-party projects. See ATTRIBUTIONS.md and THIRD_PARTY_LICENSES/.
+
+scripts/serve.sh and the deployment profile are modified downstream adaptations
+of T.J. Purtell's Apache-2.0 dual-GPU runtime recipe. See THIRD_PARTY_NOTICES.md
+for named contributors, immutable provenance, and unresolved binary-image gaps.
+
+The tested quantized checkpoint was created by Brandon M. Music using
+ShapleyMCG/TR3 and is governed by the ShapleyMCG License 1.0. The required
+attribution notice is reproduced prominently in README.md and ATTRIBUTIONS.md.
+
+The serving runtime and container were created by T.J. Purtell and contributors
+and are distributed separately under their own terms. This repository does not
+redistribute model weights or container layers.

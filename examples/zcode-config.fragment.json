@@ -1,0 +1,32 @@
+{
+  "provider": {
+    "zai": {
+      "kind": "openai-compatible",
+      "name": "Local GLM 5.3 Flash",
+      "options": {"baseURL": "http://SERVER_LAN_IP:8000/v1", "apiKey": "local-placeholder", "apiKeyRequired": false},
+      "headers": {},
+      "models": {
+        "glm-5.3-flash-local": {
+          "name": "GLM 5.3 Flash - Vision, Thinking Disabled",
+          "attachment": true,
+          "supportsImages": true,
+          "supportsPdf": false,
+          "supportsVideo": false,
+          "tool_call": true,
+          "structured_output": true,
+          "modalities": {"input": ["text", "image"], "output": ["text"]},
+          "limit": {"context": 262144, "output": 32768},
+          "options": {"enable_thinking": false},
+          "reasoning": {
+            "enabled": true,
+            "defaultLevel": "off",
+            "levels": ["off"],
+            "providerOptionsByLevel": {"off": {"openaiCompatible": {"enable_thinking": false}}}
+          }
+        }
+      }
+    }
+  },
+  "model": {"main": "zai/glm-5.3-flash-local", "lite": "zai/glm-5.3-flash-local"},
+  "plugins": {"enabledPlugins": {"browser-use@zcode-plugins-official": true, "computer-use@zcode-plugins-official": false}}
+}
