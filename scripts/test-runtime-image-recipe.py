@@ -28,10 +28,14 @@ COMMITS = (
     "12f64b39d29282437e35be9aa5db432fb2a1a6e6",
     "c6e19b3be24338759a443e03c8325d76da9ee202",
 )
-A1_RECIPE = "d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc"
+A1_RECIPE = "e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc"
 A1_IMAGE = f"local/glm53-runtime-fixes:{A1_RECIPE}"
-A2_RECIPE = "2d256f1fbce77f784c7c89a82b67bb56f521cc29bb8a26c519c8d027d66c9980"
+A1_DIGEST = "sha256:51279269e9deb57082d186c07eddfac1567d533d942ce5b651d9c27a0acfbb7f"
+A1_IMMUTABLE_IMAGE = f"local/glm53-runtime-fixes@{A1_DIGEST}"
+A2_RECIPE = "4ef38e761892c69e7c8e90748dbc362dca405cd6cde756b4afafb68cc0babd39"
 A2_IMAGE = f"local/glm53-runtime-fixes:{A2_RECIPE}"
+A2_DIGEST = "sha256:ca68a67e14b77c4291a19925d7ff262ff63805cdd90834250ab7a6d7438a54a6"
+A2_IMMUTABLE_IMAGE = f"local/glm53-runtime-fixes@{A2_DIGEST}"
 
 
 def framed_recipe_hash(items):
@@ -103,7 +107,9 @@ class RuntimeImageRecipeTests(unittest.TestCase):
 
     def test_a2_recipe_layers_workspace_on_exact_a1_parent(self):
         text = DOCKERFILE_A2.read_text()
-        self.assertEqual(re.findall(r"(?m)^FROM\s+(\S+)", text), [A1_IMAGE])
+        self.assertEqual(
+            re.findall(r"(?m)^FROM\s+(\S+)", text), [A1_IMMUTABLE_IMAGE]
+        )
         self.assertNotIn("COPY runtime/apply-xgrammar-fixes.py", text)
         self.assertNotIn("python3 /usr/local/share/runtime-fixes/apply-xgrammar-fixes.py", text)
         self.assertIn("apply-sparse-indexer-workspace.py", text)
@@ -124,6 +130,8 @@ class RuntimeImageRecipeTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertRegex(actual, r"^[0-9a-f]{64}$")
         build = BUILD_SCRIPT_A2.read_text()
+        self.assertIn(A1_DIGEST, build)
+        self.assertIn("--format '{{.Id}}'", build)
         for required in ("docker image inspect", "--network none", "--cap-drop ALL", "--security-opt no-new-privileges", "apply-xgrammar-fixes.py", "apply-sparse-indexer-workspace.py"):
             self.assertIn(required, build)
         self.assertNotIn("docker push", build)
@@ -131,7 +139,9 @@ class RuntimeImageRecipeTests(unittest.TestCase):
 
     def test_a3_recipe_layers_mixed_prefill_only_on_exact_a2_parent(self):
         text = DOCKERFILE_A3.read_text()
-        self.assertEqual(re.findall(r"(?m)^FROM\s+(\S+)", text), [A2_IMAGE])
+        self.assertEqual(
+            re.findall(r"(?m)^FROM\s+(\S+)", text), [A2_IMMUTABLE_IMAGE]
+        )
         self.assertIn("apply-mixed-prefill-policy.py", text)
         self.assertNotIn("COPY runtime/apply-xgrammar-fixes.py", text)
         self.assertNotIn("COPY runtime/apply-sparse-indexer-workspace.py", text)
@@ -152,6 +162,8 @@ class RuntimeImageRecipeTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         self.assertRegex(actual, r"^[0-9a-f]{64}$")
         build = BUILD_SCRIPT_A3.read_text()
+        self.assertIn(A2_DIGEST, build)
+        self.assertIn("--format '{{.Id}}'", build)
         for required in (
             "docker image inspect", "--network none", "--cap-drop ALL",
             "--security-opt no-new-privileges", "apply-xgrammar-fixes.py",

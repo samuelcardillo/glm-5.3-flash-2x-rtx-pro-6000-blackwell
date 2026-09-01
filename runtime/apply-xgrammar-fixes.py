@@ -10,9 +10,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import stat
 import tempfile
 from pathlib import Path
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 COMMIT_IDS = (
     "12f64b39d29282437e35be9aa5db432fb2a1a6e6",
@@ -185,11 +186,13 @@ def _atomic_write(path: Path, data: bytes) -> None:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
             handle.flush()
-            os.fchmod(handle.fileno(), source_stat.st_mode)
             try:
                 os.fchown(handle.fileno(), source_stat.st_uid, source_stat.st_gid)
             except PermissionError as error:
                 raise SystemExit(f"cannot preserve ownership for {path}: {error}") from error
+            # Ownership changes can clear set-ID bits, so restore the complete
+            # permission mode only after ownership is in place.
+            os.fchmod(handle.fileno(), stat.S_IMODE(source_stat.st_mode))
             os.fsync(handle.fileno())
         os.replace(temporary, path)
         directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
@@ -206,6 +209,7 @@ def apply_fixes(
     *,
     original_hashes: dict[str, str] = ORIGINAL_SHA256,
     patched_hashes: dict[str, str] = PATCHED_SHA256,
+    writer: Callable[[Path, bytes], None] = _atomic_write,
     verify_only: bool = False,
 ) -> str:
     """Preflight both exact files, then patch both or verify both."""
@@ -247,8 +251,31 @@ def apply_fixes(
     if state == "patched":
         return "already_patched"
 
-    for relative in PATCHES:
-        _atomic_write(root / relative, transformed[relative])
+    attempted: list[str] = []
+    try:
+        for relative in PATCHES:
+            # Record the path before calling the writer: replacement can
+            # succeed and a later durability operation can still fail.
+            attempted.append(relative)
+            target = root / relative
+            writer(target, transformed[relative])
+            if digest(target.read_bytes()) != patched_hashes[relative]:
+                raise RuntimeError(f"post-commit hash mismatch: {relative}")
+    except BaseException as error:
+        rollback_errors = []
+        for relative in reversed(attempted):
+            try:
+                _atomic_write(root / relative, originals[relative])
+            except BaseException as rollback_error:
+                rollback_errors.append(f"{relative}: {rollback_error}")
+        if rollback_errors:
+            raise SystemExit(
+                f"XGrammar commit failed ({error}); rollback also failed: "
+                + "; ".join(rollback_errors)
+            ) from error
+        raise SystemExit(
+            f"XGrammar commit failed and was rolled back: {error}"
+        ) from error
     return "patched"
 
 

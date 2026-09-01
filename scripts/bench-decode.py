@@ -81,8 +81,10 @@ def parse_sse(chunks: Iterable[bytes]) -> dict[str, Any]:
     if finish_reason is None:
         raise StreamError("stream has no finish reason")
     if (not isinstance(usage, dict)
-            or not isinstance(usage.get("prompt_tokens"), int)
-            or not isinstance(usage.get("completion_tokens"), int)):
+            or type(usage.get("prompt_tokens")) is not int
+            or type(usage.get("completion_tokens")) is not int
+            or usage["prompt_tokens"] < 0
+            or usage["completion_tokens"] < 0):
         raise StreamError("stream has no valid usage")
     if usage["completion_tokens"] <= 0 or not any(output.values()):
         raise StreamError("empty completion")

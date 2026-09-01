@@ -97,7 +97,7 @@ validate_runtime_image() (
   source "$ROOT/scripts/validate-config.sh"
 )
 base='ghcr.io/tpurtell/glm-5.3-flash-exl3-4bpw-2x-rtx@sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5'
-derived='local/glm53-runtime-fixes:d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc'
+derived='local/glm53-runtime-fixes:e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc'
 validate_runtime_image "$base"
 validate_runtime_image "$derived"
 # shellcheck disable=SC2016 # literal command substitution is an execution-safety fixture.

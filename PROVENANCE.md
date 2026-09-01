@@ -13,9 +13,9 @@ This recipe keeps the base model, quantized checkpoint, runtime, and local integ
 | GLM base image | `cstechdev/vllm:glm53-flash-nope-sm120-cu130-20260826-r1@sha256:0bd709e80b8ff13ae5de8f7d7f708a499fade3a26970d56afb1be2ff3860fde5` |
 | EXL3 source image | `ghcr.io/tpurtell/deepseek-v4-flash-0731-exl3-k2-spark@sha256:86c8c1054f9c24454949e37031ce6165c007963aa0c0ef30fa884f6d4170af32` |
 | vLLM reported by image | `0.1.dev20051+g487ecf187` |
-| A1 XGrammar recipe | `local/glm53-runtime-fixes:d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc` |
-| A2 workspace recipe | `local/glm53-runtime-fixes:2d256f1fbce77f784c7c89a82b67bb56f521cc29bb8a26c519c8d027d66c9980` |
-| Accepted A3 scheduler recipe | `local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8` |
+| A1 XGrammar recipe | `local/glm53-runtime-fixes:e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc` |
+| A2 workspace recipe | `local/glm53-runtime-fixes:4ef38e761892c69e7c8e90748dbc362dca405cd6cde756b4afafb68cc0babd39` |
+| Accepted A3 scheduler recipe | `local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70` |
 | Runtime stack reported upstream | Torch 2.13, CUDA 13, CUTLASS DSL 4.6.2 |
 
 The checkpoint's current Hugging Face HEAD is newer. This recipe deliberately pins the exact revision tested with this runtime and profile.
@@ -34,7 +34,7 @@ The three accepted local images are deterministic recipes, not redistributed con
 
 The scheduler and spin-wait experiments were informed by inspection of `MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks` at commit `c190db1ae17ba8dff20129ed1f308d10c63cf37d`, but its DGX-specific overlays were not copied unchanged. Local overlays are source-hash and anchor pinned, transactional, idempotent, and fail closed on unsupported source or configuration.
 
-A separately isolated 16 ms spin-wait image was tested and rejected because it failed the required CPU-reduction gate. It is retained only as reproducible experimental source and is not part of the accepted A3 chain.
+A separately isolated 16 ms spin-wait image was tested and rejected because it failed the required CPU-reduction gate. Only its aggregate result is documented; its rejected source and recipe are not part of this repository or the accepted A3 chain.
 
 ## Qualified host
 

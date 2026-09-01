@@ -89,9 +89,12 @@ def require_clean_process(metrics: str) -> dict[str, Any]:
 
 def verify_usage(expected_prompt_tokens: int, usage: dict[str, Any]) -> None:
     actual = usage.get("prompt_tokens")
+    if type(actual) is not int or actual < 0:
+        raise ValueError("invalid prompt token usage")
     if actual != expected_prompt_tokens:
         raise ValueError(f"prompt token mismatch: expected {expected_prompt_tokens}, got {actual}")
-    if not isinstance(usage.get("completion_tokens"), int):
+    completion = usage.get("completion_tokens")
+    if type(completion) is not int or completion <= 0:
         raise ValueError("missing completion token usage")
 
 
@@ -158,11 +161,13 @@ def main(argv=None) -> int:
         def tokenize(text):
             response = _post_json(base + "/tokenize", {"model": args.model, "messages": [{"role": "user", "content": text}]})
             count = response.get("count", response.get("num_tokens"))
-            if not isinstance(count, int):
+            if type(count) is not int:
                 tokens = response.get("tokens")
                 if not isinstance(tokens, list):
                     raise ValueError("/tokenize returned no count")
                 count = len(tokens)
+            if count < 0:
+                raise ValueError("/tokenize returned a negative count")
             return count
         prompt, exact_count = calibrate_prompt(args.target, salt, tokenize)
         if args.cold_method == "reset-endpoint":

@@ -43,7 +43,7 @@ The later large-task/repetition investigation, including raw-stream context swee
 
 ## Qualified runtime overlays (2026-09-01)
 
-The accepted derived image is `local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8`. It contains the two official XGrammar correctness backports, DCP-aware sparse-indexer workspace sizing, and the mixed-prefill scheduler overlay. The qualified profile enables `MIXED_PREFILL_CHUNK=skip`; the overlay's default `off` mode preserves stock scheduling.
+The accepted derived image is `local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70`. It contains the two official XGrammar correctness backports, DCP-aware sparse-indexer workspace sizing, and the mixed-prefill scheduler overlay. The qualified profile enables `MIXED_PREFILL_CHUNK=skip`; the overlay's default `off` mode preserves stock scheduling.
 
 ### Workspace result
 

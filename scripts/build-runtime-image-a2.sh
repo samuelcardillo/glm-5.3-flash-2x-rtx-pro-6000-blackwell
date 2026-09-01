@@ -5,8 +5,9 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCKERFILE="$ROOT/Dockerfile.runtime-fixes-a2"
 WORKSPACE_SCRIPT="$ROOT/runtime/apply-sparse-indexer-workspace.py"
 BUILD_SCRIPT="$ROOT/scripts/build-runtime-image-a2.sh"
-PARENT_RECIPE="d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc"
-PARENT_IMAGE="local/glm53-runtime-fixes:${PARENT_RECIPE}"
+PARENT_RECIPE="e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc"
+PARENT_DIGEST="sha256:51279269e9deb57082d186c07eddfac1567d533d942ce5b651d9c27a0acfbb7f"
+PARENT_IMAGE="local/glm53-runtime-fixes@${PARENT_DIGEST}"
 BASE_DIGEST="sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5"
 COMMIT_1="12f64b39d29282437e35be9aa5db432fb2a1a6e6"
 COMMIT_2="c6e19b3be24338759a443e03c8325d76da9ee202"
@@ -39,7 +40,10 @@ fi
 [[ $# -eq 0 ]] || { echo "usage: $0 [--print-recipe-hash]" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 docker image inspect "$PARENT_IMAGE" >/dev/null 2>&1 || {
-  echo "exact A1 parent image is not available locally: $PARENT_IMAGE" >&2; exit 1;
+  echo "immutable A1 parent image is not available locally: $PARENT_IMAGE" >&2; exit 1;
+}
+[[ "$(docker image inspect "$PARENT_IMAGE" --format '{{.Id}}')" == "$PARENT_DIGEST" ]] || {
+  echo "A1 parent image digest mismatch" >&2; exit 1;
 }
 parent_label() {
   docker image inspect "$PARENT_IMAGE" --format "{{ index .Config.Labels \"$1\" }}"

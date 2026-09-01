@@ -60,7 +60,7 @@ GPU_DEVICES=0,2
 
 **Stability notice:** set `USE_REPLAYSSM=0` in existing `.env` files. A matched 32K/C4 regression isolated repeated-token output and an EngineCore-killing ReplaySSM state-row mismatch to that experimental path. Adaptive MTP remains enabled and uses standard full-state rollback. Preflight now rejects `USE_REPLAYSSM=1` for this pinned runtime.
 
-**Runtime upgrade notice:** build the three qualified overlay images below, set `RUNTIME_IMAGE=local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8`, and set `MIXED_PREFILL_CHUNK=skip`. Invalid scheduler policy values fail closed. `off` remains available for stock scheduling and rollback experiments.
+**Runtime upgrade notice:** build the three qualified overlay images below, set `RUNTIME_IMAGE=local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70`, and set `MIXED_PREFILL_CHUNK=skip`. Invalid scheduler policy values fail closed. `off` remains available for stock scheduling and rollback experiments.
 
 If you previously installed the user service, updating the repository `.env` alone does not update its private copy. After pulling this revision and editing `.env`, reinstall the unit and copied environment, then restart:
 
@@ -111,7 +111,7 @@ scripts/build-runtime-image-a3.sh
 The qualified final tag is:
 
 ```text
-local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8
+local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70
 ```
 
 Use that exact `RUNTIME_IMAGE` with `MIXED_PREFILL_CHUNK=skip`. The separate 16 ms spin-wait experiment was rejected and is not part of the chain.

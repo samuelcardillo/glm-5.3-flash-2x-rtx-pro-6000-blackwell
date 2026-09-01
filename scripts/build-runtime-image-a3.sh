@@ -5,9 +5,10 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCKERFILE="$ROOT/Dockerfile.runtime-fixes-a3"
 MIXED_PREFILL_SCRIPT="$ROOT/runtime/apply-mixed-prefill-policy.py"
 BUILD_SCRIPT="$ROOT/scripts/build-runtime-image-a3.sh"
-PARENT_RECIPE="2d256f1fbce77f784c7c89a82b67bb56f521cc29bb8a26c519c8d027d66c9980"
-PARENT_IMAGE="local/glm53-runtime-fixes:${PARENT_RECIPE}"
-A1_RECIPE="d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc"
+PARENT_RECIPE="4ef38e761892c69e7c8e90748dbc362dca405cd6cde756b4afafb68cc0babd39"
+PARENT_DIGEST="sha256:ca68a67e14b77c4291a19925d7ff262ff63805cdd90834250ab7a6d7438a54a6"
+PARENT_IMAGE="local/glm53-runtime-fixes@${PARENT_DIGEST}"
+A1_RECIPE="e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc"
 BASE_DIGEST="sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5"
 COMMIT_1="12f64b39d29282437e35be9aa5db432fb2a1a6e6"
 COMMIT_2="c6e19b3be24338759a443e03c8325d76da9ee202"
@@ -40,7 +41,10 @@ fi
 [[ $# -eq 0 ]] || { echo "usage: $0 [--print-recipe-hash]" >&2; exit 2; }
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 docker image inspect "$PARENT_IMAGE" >/dev/null 2>&1 || {
-  echo "exact A2 parent image is not available locally: $PARENT_IMAGE" >&2; exit 1;
+  echo "immutable A2 parent image is not available locally: $PARENT_IMAGE" >&2; exit 1;
+}
+[[ "$(docker image inspect "$PARENT_IMAGE" --format '{{.Id}}')" == "$PARENT_DIGEST" ]] || {
+  echo "A2 parent image digest mismatch" >&2; exit 1;
 }
 parent_label() {
   docker image inspect "$PARENT_IMAGE" --format "{{ index .Config.Labels \"$1\" }}"

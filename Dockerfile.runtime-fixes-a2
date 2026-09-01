@@ -1,8 +1,8 @@
-FROM local/glm53-runtime-fixes:d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc
+FROM local/glm53-runtime-fixes@sha256:51279269e9deb57082d186c07eddfac1567d533d942ce5b651d9c27a0acfbb7f
 
 ARG RUNTIME_RECIPE_SHA256
 LABEL io.github.glm53.runtime.recipe.sha256="${RUNTIME_RECIPE_SHA256}" \
-      io.github.glm53.runtime.parent.recipe.sha256="d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc" \
+      io.github.glm53.runtime.parent.recipe.sha256="e91aebecd2907d9905c6f4520c30d49fa57f4272e9e738d46c0d3edccf3d35fc" \
       io.github.glm53.runtime.workspace="dcp-aware-sparse-indexer-v1" \
       io.github.glm53.runtime.workspace.global-cap-rows="1048576" \
       io.github.glm53.runtime.workspace.local-cap-rows="524288"

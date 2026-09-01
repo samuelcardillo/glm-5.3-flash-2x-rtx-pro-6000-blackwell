@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import os
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,11 +47,12 @@ class XGrammarFixTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
-    def apply(self):
+    def apply(self, **kwargs):
         return mod.apply_fixes(
             self.root,
             original_hashes=self.original_hashes,
             patched_hashes=self.patched_hashes,
+            **kwargs,
         )
 
     def test_backport_is_limited_to_the_two_official_commits_and_files(self):
@@ -132,6 +134,40 @@ class XGrammarFixTests(unittest.TestCase):
         (self.root / second).symlink_to(self.root / first)
         with self.assertRaisesRegex(SystemExit, "symlink"):
             self.apply()
+
+    def test_failure_after_second_replacement_rolls_back_both_files(self):
+        calls = 0
+
+        def replace_then_fail(path, data):
+            nonlocal calls
+            calls += 1
+            mod._atomic_write(path, data)
+            if calls == 2:
+                raise OSError("injected durability failure")
+
+        with self.assertRaisesRegex(SystemExit, "rolled back"):
+            self.apply(writer=replace_then_fail)
+        for relative, expected in self.original.items():
+            self.assertEqual((self.root / relative).read_bytes(), expected)
+
+    def test_post_commit_hash_mismatch_rolls_back(self):
+        def corrupting_writer(path, data):
+            mod._atomic_write(path, data + b"# corruption\n")
+
+        with self.assertRaisesRegex(SystemExit, "post-commit hash mismatch"):
+            self.apply(writer=corrupting_writer)
+        for relative, expected in self.original.items():
+            self.assertEqual((self.root / relative).read_bytes(), expected)
+
+    def test_atomic_write_preserves_mode_and_ownership(self):
+        relative = next(iter(mod.PATCHES))
+        path = self.root / relative
+        path.chmod(0o6750)
+        before = path.stat(follow_symlinks=False)
+        mod._atomic_write(path, self.patched[relative])
+        after = path.stat(follow_symlinks=False)
+        self.assertEqual(stat.S_IMODE(after.st_mode), stat.S_IMODE(before.st_mode))
+        self.assertEqual((after.st_uid, after.st_gid), (before.st_uid, before.st_gid))
 
 
 if __name__ == "__main__":

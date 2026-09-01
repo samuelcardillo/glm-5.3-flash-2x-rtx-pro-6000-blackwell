@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import json
 import pathlib
 import unittest
 
@@ -47,6 +48,18 @@ class DecodeBenchmarkTests(unittest.TestCase):
         chunks = [b'event: error\ndata: {"error":{"message":"bad"}}\n\n']
         with self.assertRaisesRegex(mod.StreamError, "SSE error"):
             mod.parse_sse(chunks)
+
+    def test_usage_rejects_boolean_float_and_negative_token_counters(self):
+        mod = load_module()
+        for prompt, completion in ((True, 1), (1, True), (1.0, 1), (1, 1.0), (-1, 1)):
+            event = (
+                'data: {"choices":[{"delta":{"content":"x"},"finish_reason":"stop"}],'
+                f'"usage":{{"prompt_tokens":{json.dumps(prompt)},'
+                f'"completion_tokens":{json.dumps(completion)}}}}}\n\n'
+                'data: [DONE]\n\n'
+            ).encode()
+            with self.subTest(prompt=prompt, completion=completion), self.assertRaises(mod.StreamError):
+                mod.parse_sse([event])
 
     def test_metric_deltas_include_mtp_totals_acceptance_and_positions(self):
         mod = load_module()

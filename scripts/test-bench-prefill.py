@@ -79,6 +79,15 @@ class PrefillBenchmarkTests(unittest.TestCase):
         mod.verify_usage(expected_prompt_tokens=100, usage={"prompt_tokens": 100, "completion_tokens": 1})
         with self.assertRaisesRegex(ValueError, "prompt token mismatch"):
             mod.verify_usage(expected_prompt_tokens=100, usage={"prompt_tokens": 99, "completion_tokens": 1})
+        for usage in (
+            {"prompt_tokens": True, "completion_tokens": 1},
+            {"prompt_tokens": 100.0, "completion_tokens": 1},
+            {"prompt_tokens": 100, "completion_tokens": True},
+            {"prompt_tokens": 100, "completion_tokens": 1.0},
+            {"prompt_tokens": 100, "completion_tokens": 0},
+        ):
+            with self.subTest(usage=usage), self.assertRaises(ValueError):
+                mod.verify_usage(expected_prompt_tokens=100, usage=usage)
 
 
 if __name__ == "__main__":
