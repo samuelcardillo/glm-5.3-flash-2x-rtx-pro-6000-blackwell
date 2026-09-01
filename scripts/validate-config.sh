@@ -7,12 +7,26 @@ set -euo pipefail
 IFS=',' read -r _gpu_a _gpu_b <<< "$GPU_DEVICES"; [[ "$_gpu_a" != "$_gpu_b" ]] || { echo 'GPU devices must be distinct' >&2; return 2; }
 [[ "$CONTAINER_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || { echo 'Invalid CONTAINER_NAME' >&2; return 2; }
 [[ "$SERVED_MODEL_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]*$ ]] || { echo 'Invalid SERVED_MODEL_NAME' >&2; return 2; }
+_base_runtime_image='ghcr.io/tpurtell/glm-5.3-flash-exl3-4bpw-2x-rtx@sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5'
+[[ "$RUNTIME_IMAGE" == "$_base_runtime_image" || "$RUNTIME_IMAGE" =~ ^local/glm53-runtime-fixes:[0-9a-f]{64}$ ]] || { echo 'RUNTIME_IMAGE must be the pinned base digest or a recipe-hash derived image' >&2; return 2; }
 for _v in PORT MAX_MODEL_LEN MAX_NUM_BATCHED_TOKENS MAX_NUM_SEQS MAX_IMAGES_PER_PROMPT MAX_VIDEOS_PER_PROMPT MTP_TOKENS ADAPTIVE_MTP_MIN_DEPTH REPLAYSSM_BUFFER_LEN; do
   [[ "${!_v}" =~ ^[0-9]+$ ]] || { echo "$_v must be an integer" >&2; return 2; }
 done
 (( PORT>=1 && PORT<=65535 )) || { echo 'PORT must be 1..65535' >&2; return 2; }
 (( MAX_MODEL_LEN>=1 && MAX_MODEL_LEN<=262144 )) || { echo 'MAX_MODEL_LEN must be 1..262144' >&2; return 2; }
 (( MAX_NUM_BATCHED_TOKENS>=1 && MAX_NUM_BATCHED_TOKENS<=2048 )) || { echo 'MAX_NUM_BATCHED_TOKENS must be 1..2048' >&2; return 2; }
+case "$MIXED_PREFILL_CHUNK" in
+  off|skip) ;;
+  *)
+    [[ "$MIXED_PREFILL_CHUNK" =~ ^[1-9][0-9]*$ ]] || { echo 'MIXED_PREFILL_CHUNK must be off, skip, or a canonical positive integer' >&2; return 2; }
+    python3 - "$MIXED_PREFILL_CHUNK" "$MAX_NUM_BATCHED_TOKENS" <<'PY' || return 2
+import sys
+cap, maximum = map(int, sys.argv[1:])
+if cap > maximum:
+    raise SystemExit("MIXED_PREFILL_CHUNK exceeds MAX_NUM_BATCHED_TOKENS")
+PY
+    ;;
+esac
 (( MAX_NUM_SEQS>=1 && MAX_NUM_SEQS<=16 )) || { echo 'MAX_NUM_SEQS must be 1..16' >&2; return 2; }
 (( MAX_IMAGES_PER_PROMPT>=5 && MAX_IMAGES_PER_PROMPT<=16 )) || { echo 'MAX_IMAGES_PER_PROMPT must be 5..16' >&2; return 2; }
 (( MAX_VIDEOS_PER_PROMPT==0 )) || { echo 'This qualified recipe requires MAX_VIDEOS_PER_PROMPT=0' >&2; return 2; }
@@ -37,4 +51,4 @@ try: utilization=float(sys.argv[2])
 except ValueError: raise SystemExit('GPU_MEMORY_UTILIZATION must be numeric')
 if not 0 < utilization <= 0.950: raise SystemExit('GPU_MEMORY_UTILIZATION must be >0 and <=0.950')
 PY
-unset _gpu_a _gpu_b _v
+unset _gpu_a _gpu_b _v _base_runtime_image

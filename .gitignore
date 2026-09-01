@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 .DS_Store
 validation-results/
+results/
+.hermes/

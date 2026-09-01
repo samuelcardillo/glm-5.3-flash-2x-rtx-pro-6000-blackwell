@@ -62,7 +62,7 @@ The source repository name contains `ext3`; the quantization technology is EXL3/
 
 ### Other named projects and organizations
 
-- **MiaAI-Lab contributors**: nearby dual-DGX-Spark SM12x deployment and stability reference, [`MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark), MIT, copyright 2026 MiaAI-Lab.
+- **MiaAI-Lab contributors**: nearby dual-DGX-Spark SM12x deployment and stability references, including [`GLM-5.3-Flash-NVFP4-Dual-DGX-Spark`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark) and the scheduler/spin-wait comparison source [`GLM-5.3-Flash-EXL3-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) at `c190db1ae17ba8dff20129ed1f308d10c63cf37d`; MIT, copyright 2026 MiaAI-Lab.
 - **Hugging Face team and Transformers contributors**: model configuration, processing, tokenization, and Hub distribution; Transformers is Apache-2.0.
 - **PyTorch contributors**: tensor/compiler runtime. PyTorch uses its project license plus bundled third-party notices; preserve the complete installed notice bundle when redistributing an image.
 - **NVIDIA Corporation and CUTLASS contributors**: CUDA, drivers, RTX PRO hardware, CUTLASS, CuTe DSL, and NVIDIA Container Toolkit. CUTLASS main source is BSD-3-Clause; CuTe DSL and CUDA components include NVIDIA EULA terms. See [CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html) and [CuTe DSL license](https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/license.html).

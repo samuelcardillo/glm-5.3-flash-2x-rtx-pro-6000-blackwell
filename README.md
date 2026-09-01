@@ -19,7 +19,10 @@ See [ATTRIBUTIONS.md](ATTRIBUTIONS.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOT
 
 - 2× RTX PRO 6000 Blackwell 96GB, including a mixed Max-Q/full-workstation pair
 - Explicit physical GPU selection on a host also containing an RTX 5090
-- Pinned checkpoint and pinned GHCR image
+- Pinned checkpoint and fail-closed derived runtime chain
+- Official XGrammar correctness backports
+- DCP-aware sparse-indexer workspace sizing, recovering about 0.99 GiB of usable KV-cache memory per rank
+- Qualified mixed-prefill `skip` policy, preserving active decode responsiveness during very long prefills
 - TP2 + DCP2 over PCIe
 - Adaptive MTP K1–K5 with standard full-state rollback; ReplaySSM disabled
 - NVFP4 MLA KV cache and prefix caching
@@ -57,6 +60,8 @@ GPU_DEVICES=0,2
 
 **Stability notice:** set `USE_REPLAYSSM=0` in existing `.env` files. A matched 32K/C4 regression isolated repeated-token output and an EngineCore-killing ReplaySSM state-row mismatch to that experimental path. Adaptive MTP remains enabled and uses standard full-state rollback. Preflight now rejects `USE_REPLAYSSM=1` for this pinned runtime.
 
+**Runtime upgrade notice:** build the three qualified overlay images below, set `RUNTIME_IMAGE=local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8`, and set `MIXED_PREFILL_CHUNK=skip`. Invalid scheduler policy values fail closed. `off` remains available for stock scheduling and rollback experiments.
+
 If you previously installed the user service, updating the repository `.env` alone does not update its private copy. After pulling this revision and editing `.env`, reinstall the unit and copied environment, then restart:
 
 ```bash
@@ -93,7 +98,25 @@ The patch refuses unknown revisions, upgrades the earlier vision-only patch safe
 scripts/apply-vision-template.py --restore "$MODEL_DIR"
 ```
 
-### 4. Preflight
+### 4. Build the qualified runtime overlays
+
+Build the deterministic A1 → A2 → A3 chain locally. The builders verify each immutable parent, apply only the declared overlay, and then verify the installed source in a network-disabled, capability-dropped container:
+
+```bash
+scripts/build-runtime-image.sh
+scripts/build-runtime-image-a2.sh
+scripts/build-runtime-image-a3.sh
+```
+
+The qualified final tag is:
+
+```text
+local/glm53-runtime-fixes:d49f27d2e5cee6d22060e9f1ad292477c0cec5b400bb6d413800679b56bd0bb8
+```
+
+Use that exact `RUNTIME_IMAGE` with `MIXED_PREFILL_CHUNK=skip`. The separate 16 ms spin-wait experiment was rejected and is not part of the chain.
+
+### 5. Preflight
 
 ```bash
 scripts/preflight.sh
@@ -101,7 +124,7 @@ scripts/preflight.sh
 
 This read-only check validates the GPU class/memory, two-card selection, 120 shards, template checksum, Docker access, and CUDA P2P read status.
 
-### 5. Launch
+### 6. Launch
 
 Foreground:
 
@@ -121,7 +144,7 @@ The enabled user service starts when your user systemd manager starts. If it mus
 
 Cold startup can take about four minutes. Wait for `Application startup complete`.
 
-### 6. Verify text, tools, and actual pixels
+### 7. Verify text, tools, and actual pixels
 
 ```bash
 python3 scripts/verify.py \

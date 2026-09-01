@@ -9,8 +9,17 @@ source "$ROOT/scripts/load-env.sh"
 source "$ROOT/scripts/defaults.sh"
 # shellcheck source=scripts/validate-config.sh
 source "$ROOT/scripts/validate-config.sh"
-IMAGE="ghcr.io/tpurtell/glm-5.3-flash-exl3-4bpw-2x-rtx@sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5"
-mkdir -p "$CACHE_DIR"; docker image inspect "$IMAGE" >/dev/null 2>&1 || docker pull "$IMAGE"
+IMAGE="$RUNTIME_IMAGE"
+mkdir -p "$CACHE_DIR"
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  [[ "$IMAGE" == local/glm53-runtime-fixes:* ]] && { echo "Derived runtime image is not built locally: $IMAGE" >&2; exit 2; }
+  docker pull "$IMAGE"
+fi
+if [[ "$IMAGE" == local/glm53-runtime-fixes:* ]]; then
+  _recipe_label=$(docker image inspect "$IMAGE" --format '{{ index .Config.Labels "io.github.glm53.runtime.recipe.sha256" }}')
+  [[ "$_recipe_label" == "${RUNTIME_IMAGE##*:}" ]] || { echo 'Derived runtime recipe label mismatch' >&2; exit 2; }
+  unset _recipe_label
+fi
 if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
   [[ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != true ]] || { echo 'Container already running' >&2; exit 1; }
   docker rm "$CONTAINER_NAME" >/dev/null
@@ -23,6 +32,7 @@ exec docker run --rm --name "$CONTAINER_NAME" --init \
   --gpus "device=${GPU_DEVICES}" --ipc=host --shm-size 32g --publish "${BIND_ADDRESS}:${PORT}:8001" \
   --env HF_HUB_OFFLINE=1 --env CUDA_DEVICE_ORDER=PCI_BUS_ID --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
   --env NCCL_DEBUG="$NCCL_DEBUG" --env VLLM_ENGINE_READY_TIMEOUT_S=3600 \
+  --env GLM53_MIXED_PREFILL_CHUNK="$MIXED_PREFILL_CHUNK" \
   --env VLLM_ADAPTIVE_MTP="$ADAPTIVE_MTP" --env VLLM_ADAPTIVE_MTP_HISTORY=16 \
   --env VLLM_ADAPTIVE_MTP_MIN_DEPTH="$ADAPTIVE_MTP_MIN_DEPTH" --env VLLM_ADAPTIVE_MTP_DECISION_WINDOW=8 \
   --env VLLM_ADAPTIVE_MTP_PROBE_INTERVAL=32 --env VLLM_ADAPTIVE_MTP_PROBE_INTERVAL_MAX=256 \

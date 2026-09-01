@@ -6,6 +6,7 @@ Type=simple
 Environment=ENV_FILE=@ENV_FILE@
 ExecStartPre=/usr/bin/docker info
 ExecStart=@REPO_DIR@/scripts/serve.sh
+ExecStartPost=@REPO_DIR@/scripts/wait-ready.py --base-url http://@READINESS_HOST@:@PORT@ --model @SERVED_MODEL_NAME@ --context @MAX_MODEL_LEN@ --timeout 1800 --container @CONTAINER_NAME@
 ExecStop=-@REPO_DIR@/scripts/stop.sh
 # EngineCore can fail while the foreground container wrapper exits zero.
 Restart=always

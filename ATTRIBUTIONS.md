@@ -30,7 +30,7 @@ The tested [`brandonmusic/GLM-5.3-Flash-tr3-4bpw`](https://huggingface.co/brando
 - **Jared** — thanked by the pinned runtime author for GLM upstream work. The upstream source provides no verifiable surname or handle, so this recipe preserves the credit without guessing an identity.
 - **ExLlamaV3 contributors, including turboderp** — EXL3 format, trellis quantization, and optimized local-inference foundations. [`turboderp-org/exllamav3`](https://github.com/turboderp-org/exllamav3), MIT.
 - **cstechdev** — published the pinned CUDA 13/SM120 GLM vLLM base image used by the runtime.
-- **MiaAI-Lab contributors** — nearby SM12x stability work for dual DGX Spark systems audited and credited by the runtime author. [`MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark).
+- **MiaAI-Lab contributors** — nearby SM12x stability work for dual DGX Spark systems and scheduler/spin-wait experiments inspected as comparative prior art; workstation overlays were independently reimplemented and validated rather than copied unchanged. [`MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark) and [`MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks).
 
 ## Model and ecosystem
 

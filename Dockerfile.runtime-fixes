@@ -1,0 +1,18 @@
+FROM ghcr.io/tpurtell/glm-5.3-flash-exl3-4bpw-2x-rtx@sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5
+
+ARG RUNTIME_RECIPE_SHA256
+LABEL org.opencontainers.image.base.digest="sha256:da5cec95778bf6996660b52e28a6e51737fec69cfc3d508bf298c8a89f273ac5" \
+      io.github.glm53.runtime.recipe.sha256="${RUNTIME_RECIPE_SHA256}" \
+      io.github.glm53.runtime.xgrammar.commit-1="12f64b39d29282437e35be9aa5db432fb2a1a6e6" \
+      io.github.glm53.runtime.xgrammar.commit-2="c6e19b3be24338759a443e03c8325d76da9ee202"
+
+COPY runtime/apply-xgrammar-fixes.py /usr/local/share/runtime-fixes/apply-xgrammar-fixes.py
+RUN chmod 0555 /usr/local/share/runtime-fixes/apply-xgrammar-fixes.py \
+ && test "${#RUNTIME_RECIPE_SHA256}" -eq 64 \
+ && case "${RUNTIME_RECIPE_SHA256}" in \
+      *[!0-9a-f]*) echo "invalid RUNTIME_RECIPE_SHA256" >&2; exit 1 ;; \
+    esac \
+ && python3 /usr/local/share/runtime-fixes/apply-xgrammar-fixes.py \
+      /usr/local/lib/python3.12/dist-packages \
+ && python3 /usr/local/share/runtime-fixes/apply-xgrammar-fixes.py \
+      --verify /usr/local/lib/python3.12/dist-packages

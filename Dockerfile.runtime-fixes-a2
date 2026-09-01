@@ -1,0 +1,19 @@
+FROM local/glm53-runtime-fixes:d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc
+
+ARG RUNTIME_RECIPE_SHA256
+LABEL io.github.glm53.runtime.recipe.sha256="${RUNTIME_RECIPE_SHA256}" \
+      io.github.glm53.runtime.parent.recipe.sha256="d6460a952a88786828a39f44fb99b417144450047dcff446813e4480eb17a8fc" \
+      io.github.glm53.runtime.workspace="dcp-aware-sparse-indexer-v1" \
+      io.github.glm53.runtime.workspace.global-cap-rows="1048576" \
+      io.github.glm53.runtime.workspace.local-cap-rows="524288"
+
+COPY runtime/apply-sparse-indexer-workspace.py /usr/local/share/runtime-fixes/apply-sparse-indexer-workspace.py
+RUN chmod 0555 /usr/local/share/runtime-fixes/apply-sparse-indexer-workspace.py \
+ && test "${#RUNTIME_RECIPE_SHA256}" -eq 64 \
+ && case "${RUNTIME_RECIPE_SHA256}" in \
+      *[!0-9a-f]*) echo "invalid RUNTIME_RECIPE_SHA256" >&2; exit 1 ;; \
+    esac \
+ && python3 /usr/local/share/runtime-fixes/apply-sparse-indexer-workspace.py \
+      /usr/local/lib/python3.12/dist-packages \
+ && python3 /usr/local/share/runtime-fixes/apply-sparse-indexer-workspace.py \
+      --verify /usr/local/lib/python3.12/dist-packages

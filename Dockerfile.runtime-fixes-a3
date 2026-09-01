@@ -1,0 +1,17 @@
+FROM local/glm53-runtime-fixes:2d256f1fbce77f784c7c89a82b67bb56f521cc29bb8a26c519c8d027d66c9980
+
+ARG RUNTIME_RECIPE_SHA256
+LABEL io.github.glm53.runtime.recipe.sha256="${RUNTIME_RECIPE_SHA256}" \
+      io.github.glm53.runtime.parent.recipe.sha256="2d256f1fbce77f784c7c89a82b67bb56f521cc29bb8a26c519c8d027d66c9980" \
+      io.github.glm53.runtime.mixed-prefill="exact-policy-v1"
+
+COPY runtime/apply-mixed-prefill-policy.py /usr/local/share/runtime-fixes/apply-mixed-prefill-policy.py
+RUN chmod 0555 /usr/local/share/runtime-fixes/apply-mixed-prefill-policy.py \
+ && test "${#RUNTIME_RECIPE_SHA256}" -eq 64 \
+ && case "${RUNTIME_RECIPE_SHA256}" in \
+      *[!0-9a-f]*) echo "invalid RUNTIME_RECIPE_SHA256" >&2; exit 1 ;; \
+    esac \
+ && python3 /usr/local/share/runtime-fixes/apply-mixed-prefill-policy.py \
+      /usr/local/lib/python3.12/dist-packages \
+ && python3 /usr/local/share/runtime-fixes/apply-mixed-prefill-policy.py \
+      --verify /usr/local/lib/python3.12/dist-packages
