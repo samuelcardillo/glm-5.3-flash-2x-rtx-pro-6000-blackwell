@@ -21,7 +21,7 @@ See [ATTRIBUTIONS.md](ATTRIBUTIONS.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOT
 - Explicit physical GPU selection on a host also containing an RTX 5090
 - Pinned checkpoint and pinned GHCR image
 - TP2 + DCP2 over PCIe
-- Adaptive MTP K1–K5 with ReplaySSM
+- Adaptive MTP K1–K5 with standard full-state rollback; ReplaySSM disabled
 - NVFP4 MLA KV cache and prefix caching
 - 262,144-token request ceiling
 - Up to 16 images per prompt; video disabled
@@ -53,6 +53,19 @@ Set absolute `MODEL_DIR` and `CACHE_DIR` paths and two physical GPU indices. The
 GPU_DEVICES=0,2
 ```
 
+**Upgrade notice:** this revision intentionally raises `MAX_IMAGES_PER_PROMPT` from the former `0..16` range to `5..16`. Existing `.env` files using `0` through `4` will fail closed during preflight/startup; set the value to at least `5`. This enforces the recipe's qualified minimum rather than silently claiming an untested reduced capability.
+
+**Stability notice:** set `USE_REPLAYSSM=0` in existing `.env` files. A matched 32K/C4 regression isolated repeated-token output and an EngineCore-killing ReplaySSM state-row mismatch to that experimental path. Adaptive MTP remains enabled and uses standard full-state rollback. Preflight now rejects `USE_REPLAYSSM=1` for this pinned runtime.
+
+If you previously installed the user service, updating the repository `.env` alone does not update its private copy. After pulling this revision and editing `.env`, reinstall the unit and copied environment, then restart:
+
+```bash
+scripts/install-user-service.sh
+systemctl --user restart glm53-2x-rtxpro6000.service
+```
+
+The installer runs `systemctl --user daemon-reload`; reinstalling also deploys the new `Restart=always` unit policy.
+
 ### 2. Review the checkpoint license and download the tested revision
 
 Read the [checkpoint model card](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw), its [license at the tested revision](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw/blob/5ab363a8dcf6405955fd5f99671e01a1c9fb124b/LICENSE), and the [retained local copy](THIRD_PARTY_LICENSES/ShapleyMCG-LICENSE-1.0.txt).
@@ -66,15 +79,15 @@ I_ACCEPT_SHAPLEYMCG_LICENSE=yes \
 
 This pins `brandonmusic/GLM-5.3-Flash-tr3-4bpw@5ab363a8dcf6405955fd5f99671e01a1c9fb124b`.
 
-### 3. Apply the reversible vision-template repair
+### 3. Apply the reversible vision and thinking-control repair
 
-The tested checkpoint contains visual weights and processors but ships a template that converts media into a text-only reminder:
+The tested checkpoint contains visual weights and processors but ships a template that converts media into a text-only reminder. Its original template also ignores `enable_thinking=false`, which can consume an entire large-task output budget in reasoning without producing final `content`. The reversible patch repairs both behaviors:
 
 ```bash
 scripts/apply-vision-template.py "$MODEL_DIR"
 ```
 
-The patch refuses unknown revisions and keeps `chat_template.text-only.bak.jinja`. Restore with:
+The patch refuses unknown revisions, upgrades the earlier vision-only patch safely, and keeps `chat_template.text-only.bak.jinja`. Restore with:
 
 ```bash
 scripts/apply-vision-template.py --restore "$MODEL_DIR"
@@ -116,7 +129,7 @@ python3 scripts/verify.py \
   --model glm-5.3-flash-local
 ```
 
-The standard-library-only verifier generates a PNG containing `73`, then checks health, exact text, structured tool arguments, and semantic image recognition.
+The standard-library-only verifier generates a PNG containing `73`, then checks health, thinking-disabled exact text, structured tool arguments, and semantic image recognition.
 
 Reproduce the exact-token retrieval checks separately:
 
@@ -128,6 +141,18 @@ python3 scripts/verify-long-context.py \
 ```
 
 This uses the live server's `/tokenize` endpoint to construct exact chat-prompt lengths, then requires both the server-reported prompt count and retrieved needle to match.
+
+Run the bounded repetition regression after upgrades or runtime-profile changes:
+
+```bash
+python3 scripts/verify-repetition.py \
+  --base-url http://127.0.0.1:8000 \
+  --model glm-5.3-flash-local \
+  --requests 40 --concurrency 4 \
+  --output repetition-regression
+```
+
+It constructs a 32K fixture, consumes raw SSE for thinking-off and maximum-thinking requests, writes each request plus separately reconstructed reasoning/content when `--output` is set, and fails on repeated subwords, dominant repeated n-grams, transport errors, or engine death. The full default run issues 80 bounded requests and can take several minutes.
 
 ## API exposure
 
@@ -144,7 +169,7 @@ Vision loads approximately 1.05GiB of BF16 visual tensors. The validated 262,144
 
 ## Zcode
 
-Merge [examples/zcode-config.fragment.json](examples/zcode-config.fragment.json), replace `SERVER_LAN_IP`, and fully restart Zcode. Keep the explicit reasoning-off profile: raising output tokens or timeouts only prolongs a reasoning loop.
+Merge [examples/zcode-config.fragment.json](examples/zcode-config.fragment.json), replace `SERVER_LAN_IP`, and fully restart Zcode. The server now defaults `enable_thinking` to false, so clients that omit or mis-serialize that option still receive final content. Thinking remains available per request with `"chat_template_kwargs":{"enable_thinking":true,"reasoning_effort":"low"}`. Raising output tokens or timeouts is not a substitute for selecting the intended thinking mode.
 
 ## Operations
 

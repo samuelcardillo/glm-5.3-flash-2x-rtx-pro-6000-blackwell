@@ -30,11 +30,12 @@ def req(base,path,payload=None,timeout=300):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument('--base-url',default='http://127.0.0.1:8000'); ap.add_argument('--model',default='glm-5.3-flash-local'); a=ap.parse_args(); out={}
     _,dt=req(a.base_url,'/health'); out['health']={'pass':True,'seconds':dt}
-    p={'model':a.model,'messages':[{'role':'user','content':'Reply with exactly TEXT_OK'}],'max_tokens':64,'temperature':0,'enable_thinking':False}
+    no_thinking={'chat_template_kwargs':{'enable_thinking':False}}
+    p={'model':a.model,'messages':[{'role':'user','content':'Reply with exactly TEXT_OK'}],'max_tokens':64,'temperature':0,**no_thinking}
     d,dt=req(a.base_url,'/v1/chat/completions',p); ans=(d['choices'][0]['message'].get('content')or'').strip(); out['text']={'pass':ans=='TEXT_OK','answer':ans,'seconds':dt}
-    p={'model':a.model,'messages':[{'role':'user','content':'Call record_value immediately with value TOOL_OK.'}],'tools':[{'type':'function','function':{'name':'record_value','description':'Record a value','parameters':{'type':'object','properties':{'value':{'type':'string'}},'required':['value']}}}],'max_tokens':256,'temperature':0,'enable_thinking':False}
+    p={'model':a.model,'messages':[{'role':'user','content':'Call record_value immediately with value TOOL_OK.'}],'tools':[{'type':'function','function':{'name':'record_value','description':'Record a value','parameters':{'type':'object','properties':{'value':{'type':'string'}},'required':['value']}}}],'max_tokens':256,'temperature':0,**no_thinking}
     d,dt=req(a.base_url,'/v1/chat/completions',p); calls=d['choices'][0]['message'].get('tool_calls')or[]; ok=bool(calls) and json.loads(calls[0]['function']['arguments']).get('value')=='TOOL_OK'; out['tool']={'pass':ok,'tool_calls':calls,'seconds':dt}
-    image=base64.b64encode(make_png()).decode(); p={'model':a.model,'messages':[{'role':'user','content':[{'type':'text','text':'Read the large black number in this image. Answer with only that number.'},{'type':'image_url','image_url':{'url':'data:image/png;base64,'+image}}]}],'max_tokens':128,'temperature':0,'enable_thinking':False}
+    image=base64.b64encode(make_png()).decode(); p={'model':a.model,'messages':[{'role':'user','content':[{'type':'text','text':'Read the large black number in this image. Answer with only that number.'},{'type':'image_url','image_url':{'url':'data:image/png;base64,'+image}}]}],'max_tokens':128,'temperature':0,**no_thinking}
     d,dt=req(a.base_url,'/v1/chat/completions',p); ans=(d['choices'][0]['message'].get('content')or'').strip(); out['vision']={'pass':ans=='73','answer':ans,'seconds':dt}
     print(json.dumps(out,indent=2)); raise SystemExit(0 if all(v['pass'] for v in out.values()) else 1)
 if __name__=='__main__':main()

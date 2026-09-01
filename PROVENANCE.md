@@ -44,7 +44,7 @@ These are validation facts, not universal minimum-version claims.
 - 0.950 GPU memory utilization
 - Prefix caching with aligned Mamba cache
 - Feedback-adaptive MTP K1–K5
-- ReplaySSM buffer length 10
+- Standard speculative full-state rollback; ReplaySSM disabled after a matched corruption/crash regression
 - Maximum 16 images and 0 videos per prompt
 - GLM 4.7 tool parser and GLM 4.5 reasoning parser
 

@@ -5,6 +5,8 @@ bash -n "$ROOT"/scripts/*.sh
 python3 -m py_compile "$ROOT"/scripts/*.py
 python3 -m json.tool "$ROOT/examples/zcode-config.fragment.json" >/dev/null
 "$ROOT/scripts/test-config-parser.sh"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-template-patch.py"
+python3 "$ROOT/scripts/test-repetition-verifier.py"
 if command -v shellcheck >/dev/null; then shellcheck "$ROOT"/scripts/*.sh; else echo 'shellcheck not installed; skipped'; fi
 python3 - "$ROOT" <<'PY'
 from pathlib import Path

@@ -34,7 +34,7 @@ def main():
     args=ap.parse_args(); results=[]
     for target in [int(x) for x in args.targets.split(',') if x]:
         content,count=exact_prompt(args.base_url,args.model,target,args.needle,args.timeout)
-        payload={'model':args.model,'messages':[{'role':'user','content':content}],'max_tokens':64,'temperature':0,'enable_thinking':False}
+        payload={'model':args.model,'messages':[{'role':'user','content':content}],'max_tokens':64,'temperature':0,'chat_template_kwargs':{'enable_thinking':False}}
         started=time.time(); data=post(args.base_url,'/v1/chat/completions',payload,args.timeout); elapsed=round(time.time()-started,3)
         answer=(data['choices'][0]['message'].get('content')or'').strip(); usage=data.get('usage')or{}
         row={'target_prompt_tokens':target,'tokenize_count':count,'server_prompt_tokens':usage.get('prompt_tokens'),'answer':answer,'seconds':elapsed,'pass':answer==args.needle and usage.get('prompt_tokens')==target}

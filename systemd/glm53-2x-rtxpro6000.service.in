@@ -7,7 +7,8 @@ Environment=ENV_FILE=@ENV_FILE@
 ExecStartPre=/usr/bin/docker info
 ExecStart=@REPO_DIR@/scripts/serve.sh
 ExecStop=-@REPO_DIR@/scripts/stop.sh
-Restart=on-failure
+# EngineCore can fail while the foreground container wrapper exits zero.
+Restart=always
 RestartSec=10
 TimeoutStartSec=infinity
 TimeoutStopSec=90

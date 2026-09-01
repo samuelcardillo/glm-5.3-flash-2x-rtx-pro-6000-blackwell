@@ -57,7 +57,7 @@ print(f'P2P {want[0]} -> {want[1]}: {status}')
 if status!='OK': raise SystemExit('FAIL P2P read status is not OK; see docs/TROUBLESHOOTING.md')
 PY
 hash=$(sha256sum "$MODEL_DIR/chat_template.jinja"|cut -d' ' -f1)
-[[ "$hash" == 15e397141077cea6619b82d0cf4b0f9419668580bebf9a82a9d1b3ad2fea3df5 ]] || { echo 'FAIL vision template absent/unknown'; fail=1; }
+[[ "$hash" == 0a3c8768eb6b309ef077163b045b4240d5609a9c84ea1b7019aa63d76c9301bc ]] || { echo 'FAIL vision/thinking-control template absent or unknown'; fail=1; }
 df -h "$MODEL_DIR"
 (( fail==0 )) || exit 1
 echo 'PREFLIGHT PASS'

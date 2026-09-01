@@ -41,4 +41,5 @@ exec docker run --rm --name "$CONTAINER_NAME" --init \
   --limit-mm-per-prompt "{\"image\":${MAX_IMAGES_PER_PROMPT},\"video\":${MAX_VIDEOS_PER_PROMPT}}" "${CACHE_ARGS[@]}" \
   --attention-backend B12X_MLA_SPARSE --max-model-len "$MAX_MODEL_LEN" --max-num-batched-tokens "$MAX_NUM_BATCHED_TOKENS" \
   --max-num-seqs "$MAX_NUM_SEQS" --max-cudagraph-capture-size 64 --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
-  --kv-cache-dtype "$KV_CACHE_DTYPE" --no-enable-flashinfer-autotune --enable-auto-tool-choice --tool-call-parser glm47 --reasoning-parser glm45
+  --kv-cache-dtype "$KV_CACHE_DTYPE" --no-enable-flashinfer-autotune --default-chat-template-kwargs '{"enable_thinking":false}' \
+  --enable-auto-tool-choice --tool-call-parser glm47 --reasoning-parser glm45

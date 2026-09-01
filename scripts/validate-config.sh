@@ -14,13 +14,17 @@ done
 (( MAX_MODEL_LEN>=1 && MAX_MODEL_LEN<=262144 )) || { echo 'MAX_MODEL_LEN must be 1..262144' >&2; return 2; }
 (( MAX_NUM_BATCHED_TOKENS>=1 && MAX_NUM_BATCHED_TOKENS<=2048 )) || { echo 'MAX_NUM_BATCHED_TOKENS must be 1..2048' >&2; return 2; }
 (( MAX_NUM_SEQS>=1 && MAX_NUM_SEQS<=16 )) || { echo 'MAX_NUM_SEQS must be 1..16' >&2; return 2; }
-(( MAX_IMAGES_PER_PROMPT>=0 && MAX_IMAGES_PER_PROMPT<=16 )) || { echo 'MAX_IMAGES_PER_PROMPT must be 0..16' >&2; return 2; }
+(( MAX_IMAGES_PER_PROMPT>=5 && MAX_IMAGES_PER_PROMPT<=16 )) || { echo 'MAX_IMAGES_PER_PROMPT must be 5..16' >&2; return 2; }
 (( MAX_VIDEOS_PER_PROMPT==0 )) || { echo 'This qualified recipe requires MAX_VIDEOS_PER_PROMPT=0' >&2; return 2; }
 (( MTP_TOKENS>=1 && MTP_TOKENS<=5 )) || { echo 'MTP_TOKENS must be 1..5' >&2; return 2; }
 (( REPLAYSSM_BUFFER_LEN>=1 && REPLAYSSM_BUFFER_LEN<=10 )) || { echo 'REPLAYSSM_BUFFER_LEN must be 1..10' >&2; return 2; }
-for _v in ENABLE_PREFIX_CACHING ADAPTIVE_MTP USE_REPLAYSSM; do
+for _v in ENABLE_PREFIX_CACHING ADAPTIVE_MTP; do
   [[ "${!_v}" == 0 || "${!_v}" == 1 ]] || { echo "$_v must be 0 or 1" >&2; return 2; }
 done
+[[ "$USE_REPLAYSSM" == 0 ]] || {
+  echo 'USE_REPLAYSSM must remain 0: the pinned runtime has a confirmed ReplaySSM state-corruption failure' >&2
+  return 2
+}
 (( ADAPTIVE_MTP_MIN_DEPTH>=1 && ADAPTIVE_MTP_MIN_DEPTH<=MTP_TOKENS )) || { echo 'ADAPTIVE_MTP_MIN_DEPTH must be within MTP depth' >&2; return 2; }
 [[ "$KV_CACHE_DTYPE" == nvfp4_ds_mla ]] || { echo 'Qualified profile requires KV_CACHE_DTYPE=nvfp4_ds_mla' >&2; return 2; }
 [[ "$NCCL_DEBUG" =~ ^(VERSION|WARN|INFO|TRACE|ABORT)$ ]] || { echo 'NCCL_DEBUG must be VERSION, WARN, INFO, TRACE, or ABORT' >&2; return 2; }

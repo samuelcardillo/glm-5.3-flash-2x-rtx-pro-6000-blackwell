@@ -39,4 +39,6 @@ python3 scripts/verify-long-context.py \
 
 The long-context script constructs exact chat-prompt lengths through the server's `/tokenize` endpoint and verifies `usage.prompt_tokens`. A pre-publication run on the qualified service passed at 128,000 tokens in 29.635 seconds and 261,900 tokens in 57.372 seconds. These timings are a separate request lineage from the historical 261,798-token/69.33-second TTFT row above.
 
+The later large-task/repetition investigation, including raw-stream context sweeps, the thinking-control fix, and the matched ReplaySSM red/green isolation (11/80 shared-prefix loops plus an EngineCore crash with ReplaySSM, versus 0/120 loops/errors without it), is documented in [2026-09-01-corruption-investigation.md](2026-09-01-corruption-investigation.md).
+
 Archive JSON with `nvidia-smi`, topology, `docker inspect`, and logs. Never compare results unless checkpoint revision, template hash, image digest, arguments, hardware, context, and requests match.
