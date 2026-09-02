@@ -178,6 +178,21 @@ class WaitReadyTests(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 1.0)
         self.assertIn("container exited before readiness", result.stderr)
 
+    def test_container_health_must_finish_release_warmup(self) -> None:
+        for state, expected in (("true|starting", 1), ("true|healthy", 0)):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
+                docker = Path(directory) / "docker"
+                docker.write_text(f"#!/bin/sh\necho '{state}'\n")
+                docker.chmod(0o755)
+                result = subprocess.run(
+                    [sys.executable, str(WAIT), "--base-url", self.base,
+                     "--model", "overlord-testing", "--context", "262144",
+                     "--timeout", "0.08", "--interval", "0.01", "--container", "candidate"],
+                    env={**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"]},
+                    text=True, capture_output=True, check=False,
+                )
+                self.assertEqual(result.returncode, expected, result.stderr)
+
 
 class RunCanaryTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -187,9 +202,9 @@ class RunCanaryTests(unittest.TestCase):
         self.control = self.dir / "control.env"
         self.candidate = self.dir / "candidate.env"
         common = (
-            "MODEL_DIR=/model\nCACHE_DIR=/cache\nGPU_DEVICES=0,2\n"
+            "MODEL_DIR=/model\nDRAFT_DIR=/draft\nCACHE_DIR=/cache\nGPU_DEVICES=0,2\n"
             "BIND_ADDRESS=127.0.0.1\nSERVED_MODEL_NAME=overlord-testing\n"
-            "MAX_MODEL_LEN=262144\nUSE_REPLAYSSM=0\n"
+            "MAX_MODEL_LEN=1048576\n"
         )
         self.control.write_text(common + "PORT=8000\nCONTAINER_NAME=control\n")
         self.candidate.write_text(common + "PORT=8002\nCONTAINER_NAME=candidate\n")
@@ -291,7 +306,7 @@ class RunCanaryTests(unittest.TestCase):
         self.assertNotIn("@READINESS_HOST@", rendered)
         self.assertIn("--base-url http://127.0.0.1:8000", rendered)
         self.assertIn("--model overlord-testing", rendered)
-        self.assertIn("--context 262144", rendered)
+        self.assertIn("--context 1048576", rendered)
 
     def test_success_restores_control_after_checks(self) -> None:
         result = self.run_canary(self.check_ok)
@@ -311,6 +326,43 @@ class RunCanaryTests(unittest.TestCase):
         self.assertIn("check-fail", events)
         self.assertIn("systemctl --user start unit.service", events)
         self.assertTrue(any(line == "docker rm -f candidate" for line in events))
+
+    def test_hup_is_trapped_for_restoration(self) -> None:
+        self.assertIn("trap 'exit 129' HUP", CANARY.read_text())
+
+    def test_restoration_failure_overrides_check_status(self) -> None:
+        self.systemctl.write_text(
+            "#!/bin/sh\nset -eu\nprintf 'systemctl %s\\n' \"$*\" >> \"$EVENT_LOG\"\n"
+            "case \"$*\" in *' start '*) exit 9;; esac\n"
+        )
+        self.systemctl.chmod(0o755)
+        result = self.run_canary(self.check_fail)
+        self.assertEqual(result.returncode, 125)
+        self.assertIn("RESTORATION FAILED", result.stderr)
+
+    def test_partial_stop_failure_still_restores_control(self) -> None:
+        self.systemctl.write_text(
+            "#!/bin/sh\nset -eu\nprintf 'systemctl %s\\n' \"$*\" >> \"$EVENT_LOG\"\n"
+            "case \"$*\" in *' stop '*) exit 9;; esac\n"
+        )
+        self.systemctl.chmod(0o755)
+        result = self.run_canary(self.check_ok)
+        self.assertEqual(result.returncode, 9)
+        events = self.log.read_text().splitlines()
+        self.assertIn("systemctl --user start unit.service", events)
+        self.assertTrue(any(line.startswith("wait --base-url") for line in events))
+
+    def test_inactive_control_fails_before_stop_or_candidate_launch(self) -> None:
+        self.systemctl.write_text(
+            "#!/bin/sh\nset -eu\nprintf 'systemctl %s\\n' \"$*\" >> \"$EVENT_LOG\"\n"
+            "case \"$*\" in *' is-active '*) exit 3;; esac\n"
+        )
+        self.systemctl.chmod(0o755)
+        result = self.run_canary(self.check_ok)
+        self.assertEqual(result.returncode, 2)
+        events = self.log.read_text().splitlines()
+        self.assertFalse(any(' stop ' in f' {line} ' for line in events))
+        self.assertFalse(any(line.startswith('serve-start') for line in events))
 
 
 if __name__ == "__main__":

@@ -1,47 +1,75 @@
-# GLM-5.3 Flash on 2× RTX PRO 6000 Blackwell 96GB
+# GLM-5.3 Flash K3 + DFlash2 on 2× RTX PRO 6000 Blackwell 96GB
 
-A reproducible, vision-enabled, 262K-context deployment recipe for the EXL3/TR3 4-bpw GLM-5.3 Flash checkpoint on two PCIe-connected NVIDIA RTX PRO 6000 Blackwell 96GB workstation GPUs.
+A revision-pinned, OpenAI-compatible recipe for one-million-token context, 16-image prompts, and high-throughput DFlash2 speculative decoding on two PCIe-connected RTX PRO 6000 Blackwell 96GB GPUs.
 
-> This work includes or was produced using ShapleyMcg, created by Brandon M. Music (https://github.com/brandonmmusic-max/shapleymcg). ShapleyMcg is licensed under the ShapleyMcg License v1.0, an attribution-required license that grants no rights to the person known as "0xSero." Use of ShapleyMcg without this attribution is unlicensed.
+This repository integrates and safety-hardens T.J. Purtell's v0.6 runtime. It does not redistribute model weights or container layers.
 
-## Read this first
+## Important license boundary
 
-- This is an **integration recipe**, not a new model, quantization method, or serving engine.
-- The checkpoint was created by **Brandon M. Music** using ShapleyMCG/TR3. It is source-available under a non-OSI license; review its terms before use.
-- The dual-GPU runtime and pinned container were built by **T.J. Purtell and upstream contributors**.
-- No model weights or container layers are stored here.
-- This targets **RTX PRO 6000 Blackwell 96GB**, not RTX 6000 Ada 48GB or RTX A6000 48GB.
-- The validated checkpoint is approximately 175.6GB; two 48GB cards cannot run this profile unchanged.
+The DFlash2 draft checkpoint is licensed **CC BY-NC-ND 4.0 for research and evaluation**. Commercial use requires separate permission from Inco AI. The download and launch paths fail closed until `ACCEPT_DFLASH2_RESEARCH_LICENSE=1` is set after reviewing the terms.
 
-See [ATTRIBUTIONS.md](ATTRIBUTIONS.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [PROVENANCE.md](PROVENANCE.md). The notices document two unresolved source/build-provenance gaps in third-party binary images; do not mirror or redistribute the composed image as fully source-audited.
+See [ATTRIBUTIONS.md](ATTRIBUTIONS.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and [PROVENANCE.md](PROVENANCE.md).
 
-## Validated profile
+## Locally qualified result
 
-- 2× RTX PRO 6000 Blackwell 96GB, including a mixed Max-Q/full-workstation pair
-- Explicit physical GPU selection on a host also containing an RTX 5090
-- Pinned checkpoint and fail-closed derived runtime chain
-- Official XGrammar correctness backports
-- DCP-aware sparse-indexer workspace sizing, recovering about 0.99 GiB of usable KV-cache memory per rank
-- Qualified mixed-prefill `skip` policy, preserving active decode responsiveness during very long prefills
-- TP2 + DCP2 over PCIe
-- Adaptive MTP K1–K5 with standard full-state rollback; ReplaySSM disabled
-- NVFP4 MLA KV cache and prefix caching
-- 262,144-token request ceiling
-- Up to 16 images per prompt; video disabled
-- OpenAI-compatible text, structured tools, and semantic image input
-- Exact 128K and 261.9K retrieval acceptance tests
-- Zcode image → GLM vision → `Write` tool workflow
-- Login-persistent user systemd service, with optional administrator-enabled linger for boot-time start
+Qualified on a mixed pair consisting of one RTX PRO 6000 Blackwell Max-Q 96GB and one full RTX PRO 6000 Blackwell Workstation Edition 96GB. An unrelated RTX 5090 was excluded explicitly.
+
+- Target: `wrldsuksgo2mars/GLM-5.3-Flash-EXL3-K3-v1@319d66a8b53092b491f698440ecea781e4ddd4e4`
+- Draft: `incoai/GLM-5.3-Flash-DFlash2@dc77ff1c99eeb2df044ee3d4f0094eb033fee410`
+- Runtime: tpurtell v0.6 image pinned by OCI digest
+- TP2 + EP2 + DCP2, B12x sparse MLA, FP8 target KV, replicated BF16 DFlash2 K5 draft KV
+- 1,048,576-token request ceiling
+- 2,926,692-token reported KV pool, or 2.79 request-equivalents at the maximum context
+- 16 scheduler slots
+- 16 images accepted in one request; image 17 rejected; video disabled
+- Thinking off by default, with explicit opt-in retained
+- ReplaySSM absent
+- Exact one-million-token six-needle retrieval: 6/6 in 284.859 seconds
+- Repetition regression: 80/80 requests, zero loops and zero errors
+- Seven-case semantic content suite: 7/7 pass; 39.30% aggregate DFlash acceptance
+- Control deployment restored and verified after the disruptive canary
+
+### Local decode throughput
+
+Five measured runs per point after two warmups, 256 output tokens per sequence, fixed code-agent fixture and seed. Throughput excludes TTFT and sums each sequence's first-to-last-token decode rate.
+
+| Concurrency | Aggregate decode | Median DFlash acceptance |
+|---:|---:|---:|
+| 1 | 179.50 tok/s | 64.92% |
+| 2 | 317.07 tok/s | 65.45% |
+| 4 | 493.40 tok/s | 65.97% |
+| 8 | 759.72 tok/s | 66.32% |
+| 16 | 1,045.47 tok/s | 66.46% |
+
+T.J. Purtell's final v0.6 receipt reports 222.6 tok/s at C1 and 1,067.2 tok/s at C16 on two cards explicitly capped at 400 W each. This host cannot reproduce that power condition: its Max-Q card was at 300 W and cannot exceed 325 W, while the full card was at 600 W. The local C16 result is 2.0% below that final upstream receipt and 4.0% above upstream's initially selected 1,004.9 tok/s profile. Do not transfer performance claims between machines.
+
+### Local prefill
+
+Exact unique prompts, three runs each; client request-to-first-token timing includes server tokenization and one-token handoff.
+
+| Prompt tokens | Median effective prefill | Median TTFT |
+|---:|---:|---:|
+| 8,192 | 4,258.74 tok/s | 1.924 s |
+| 16,384 | 4,107.44 tok/s | 3.989 s |
+| 32,768 | 4,219.75 tok/s | 7.765 s |
+| 65,536 | 4,230.59 tok/s | 15.491 s |
+| 128,000 | 4,199.66 tok/s | 30.479 s |
+
+Detailed methodology is in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Requirements
 
-Validated with Linux 6.17/Ubuntu 24.04-family userspace, NVIDIA driver 590.48.01, Docker 29.1.3, and two 97,887MiB RTX PRO 6000 Blackwell cards. You also need NVIDIA Container Toolkit, the Hugging Face `hf` CLI, healthy CUDA peer access, and roughly 220GB free storage for checkpoint, image, cache, and headroom.
+- Linux with Docker and NVIDIA Container Toolkit
+- Two 96GB RTX PRO 6000 Blackwell GPUs with CUDA P2P read access
+- NVIDIA driver compatible with the pinned CUDA 13 runtime
+- Hugging Face `hf` CLI
+- Approximately 180GB free for the 127.30GiB target, 2.18GiB draft, runtime image, and caches
 
-The recipe does not automatically modify the kernel, bootloader, NVIDIA module parameters, Docker root, firewall, or network exposure.
+This exact profile was tested on Linux 6.17, NVIDIA driver 590.48.01, and Docker 29.1.3. Those are evidence, not universal minimum versions.
 
 ## Quick start
 
-### 1. Clone and configure
+### 1. Configure
 
 ```bash
 git clone https://github.com/samuelcardillo/glm-5.3-flash-2x-rtx-pro-6000-blackwell.git
@@ -50,171 +78,89 @@ cp config/example.env .env
 $EDITOR .env
 ```
 
-Set absolute `MODEL_DIR` and `CACHE_DIR` paths and two physical GPU indices. The safe default binds the API to `127.0.0.1`; set `BIND_ADDRESS` to a specific trusted LAN/Tailnet address only when remote clients need direct access. For cards at physical indices 0 and 2:
+Set absolute `MODEL_DIR`, `DRAFT_DIR`, and `CACHE_DIR` paths. Select exactly two physical RTX PRO 6000 indices. The API binds to `127.0.0.1` by default.
+
+Review the [DFlash2 terms](https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2) and retained [CC BY-NC-ND 4.0 text](THIRD_PARTY_LICENSES/CC-BY-NC-ND-4.0.txt). If appropriate for your use, set:
 
 ```text
-GPU_DEVICES=0,2
+ACCEPT_DFLASH2_RESEARCH_LICENSE=1
 ```
 
-**Upgrade notice:** this revision intentionally raises `MAX_IMAGES_PER_PROMPT` from the former `0..16` range to `5..16`. Existing `.env` files using `0` through `4` will fail closed during preflight/startup; set the value to at least `5`. This enforces the recipe's qualified minimum rather than silently claiming an untested reduced capability.
-
-**Stability notice:** set `USE_REPLAYSSM=0` in existing `.env` files. A matched 32K/C4 regression isolated repeated-token output and an EngineCore-killing ReplaySSM state-row mismatch to that experimental path. Adaptive MTP remains enabled and uses standard full-state rollback. Preflight now rejects `USE_REPLAYSSM=1` for this pinned runtime.
-
-**Runtime upgrade notice:** build the three qualified overlay images below, set `RUNTIME_IMAGE=local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70`, and set `MIXED_PREFILL_CHUNK=skip`. Invalid scheduler policy values fail closed. `off` remains available for stock scheduling and rollback experiments.
-
-If you previously installed the user service, updating the repository `.env` alone does not update its private copy. After pulling this revision and editing `.env`, reinstall the unit and copied environment, then restart:
+### 2. Download both immutable revisions
 
 ```bash
-scripts/install-user-service.sh
-systemctl --user restart glm53-2x-rtxpro6000.service
+ACCEPT_DFLASH2_RESEARCH_LICENSE=1 scripts/download-model.sh \
+  /absolute/path/to/GLM-5.3-Flash-EXL3-K3-v1 \
+  /absolute/path/to/GLM-5.3-Flash-DFlash2
 ```
 
-The installer runs `systemctl --user daemon-reload`; reinstalling also deploys the new `Restart=always` unit policy.
+The downloader writes `RECIPE_PIN.txt` only after both pinned downloads complete.
 
-### 2. Review the checkpoint license and download the tested revision
-
-Read the [checkpoint model card](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw), its [license at the tested revision](https://huggingface.co/brandonmusic/GLM-5.3-Flash-tr3-4bpw/blob/5ab363a8dcf6405955fd5f99671e01a1c9fb124b/LICENSE), and the [retained local copy](THIRD_PARTY_LICENSES/ShapleyMCG-LICENSE-1.0.txt).
-
-If its terms apply to you:
-
-```bash
-I_ACCEPT_SHAPLEYMCG_LICENSE=yes \
-  scripts/download-model.sh /absolute/path/to/GLM-5.3-Flash-tr3-4bpw
-```
-
-This pins `brandonmusic/GLM-5.3-Flash-tr3-4bpw@5ab363a8dcf6405955fd5f99671e01a1c9fb124b`.
-
-### 3. Apply the reversible vision and thinking-control repair
-
-The tested checkpoint contains visual weights and processors but ships a template that converts media into a text-only reminder. Its original template also ignores `enable_thinking=false`, which can consume an entire large-task output budget in reasoning without producing final `content`. The reversible patch repairs both behaviors:
-
-```bash
-scripts/apply-vision-template.py "$MODEL_DIR"
-```
-
-The patch refuses unknown revisions, upgrades the earlier vision-only patch safely, and keeps `chat_template.text-only.bak.jinja`. Restore with:
-
-```bash
-scripts/apply-vision-template.py --restore "$MODEL_DIR"
-```
-
-### 4. Build the qualified runtime overlays
-
-Build the deterministic A1 → A2 → A3 chain locally. The builders verify each immutable parent, apply only the declared overlay, and then verify the installed source in a network-disabled, capability-dropped container:
-
-```bash
-scripts/build-runtime-image.sh
-scripts/build-runtime-image-a2.sh
-scripts/build-runtime-image-a3.sh
-```
-
-The qualified final tag is:
-
-```text
-local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70
-```
-
-Use that exact `RUNTIME_IMAGE` with `MIXED_PREFILL_CHUNK=skip`. The separate 16 ms spin-wait experiment was rejected and is not part of the chain.
-
-### 5. Preflight
+### 3. Preflight
 
 ```bash
 scripts/preflight.sh
 ```
 
-This read-only check validates the GPU class/memory, two-card selection, 120 shards, template checksum, Docker access, and CUDA P2P read status.
+Preflight validates immutable pins, 16 target shards and exact byte total, DFlash2 architecture/size, profile boundaries, runtime image, GPU class/memory, exact two-device selection, and P2P read access.
 
-### 6. Launch
-
-Foreground:
+### 4. Launch
 
 ```bash
 scripts/serve.sh
 ```
 
-Persistent user service:
+The launcher automatically derives a hash-pinned chat template into `CACHE_DIR`; it never mutates the model snapshot. The derived template makes thinking-off requests produce clean final content while preserving explicit reasoning modes.
+
+Startup intentionally performs extensive graph and kernel warmup. Do not treat `/health` alone as release readiness; wait for Docker health to become `healthy` or use `scripts/wait-ready.py`.
+
+### 5. Verify
+
+```bash
+python3 scripts/verify.py --base-url http://127.0.0.1:8000 --model glm-5.3-flash-local
+python3 scripts/verify-vision-limit.py --base-url http://127.0.0.1:8000 --model glm-5.3-flash-local --output vision.json
+python3 scripts/verify-multi-needle.py --base-url http://127.0.0.1:8000 --model glm-5.3-flash-local --tokens 1000000 --max-tokens 512 --output million.json
+```
+
+The vision verifier sends 1, 4, and 16 generated numbered images and requires the exact ordered values, then requires image 17 to be rejected. The long-context verifier constructs exactly 1,000,000 server-tokenized prompt tokens and retrieves six records placed at 5%, 25%, 50%, 75%, 95%, and 99%.
+
+### 6. Benchmark
+
+```bash
+python3 scripts/benchmark-dflash2.py \
+  --base-url http://127.0.0.1:8000 --model glm-5.3-flash-local \
+  --suite code-agent --dflash-tokens 5 --concurrency 1 2 4 8 16 \
+  --output-tokens 256 --warmup-runs 2 --runs 5 --output decode.json
+
+python3 scripts/benchmark-prefill-v06.py \
+  --base-url http://127.0.0.1:8000/v1 --model glm-5.3-flash-local \
+  --profile fp8 --prompt-tokens 8192 16384 32768 65536 128000 \
+  --runs 3 --output prefill.json
+```
+
+## Service and canary operations
+
+Install the included user service with:
 
 ```bash
 scripts/install-user-service.sh
 systemctl --user start glm53-2x-rtxpro6000.service
-journalctl --user -u glm53-2x-rtxpro6000.service -f
 ```
 
-The enabled user service starts when your user systemd manager starts. If it must start before interactive login, an administrator can explicitly enable lingering with `sudo loginctl enable-linger "$USER"`; review that policy change before applying it.
-
-Cold startup can take about four minutes. Wait for `Application startup complete`.
-
-### 7. Verify text, tools, and actual pixels
-
-```bash
-python3 scripts/verify.py \
-  --base-url http://127.0.0.1:8000 \
-  --model glm-5.3-flash-local
-```
-
-The standard-library-only verifier generates a PNG containing `73`, then checks health, thinking-disabled exact text, structured tool arguments, and semantic image recognition.
-
-Reproduce the exact-token retrieval checks separately:
-
-```bash
-python3 scripts/verify-long-context.py \
-  --base-url http://127.0.0.1:8000 \
-  --model glm-5.3-flash-local \
-  --targets 128000,261900
-```
-
-This uses the live server's `/tokenize` endpoint to construct exact chat-prompt lengths, then requires both the server-reported prompt count and retrieved needle to match.
-
-Run the bounded repetition regression after upgrades or runtime-profile changes:
-
-```bash
-python3 scripts/verify-repetition.py \
-  --base-url http://127.0.0.1:8000 \
-  --model glm-5.3-flash-local \
-  --requests 40 --concurrency 4 \
-  --output repetition-regression
-```
-
-It constructs a 32K fixture, consumes raw SSE for thinking-off and maximum-thinking requests, writes each request plus separately reconstructed reasoning/content when `--output` is set, and fails on repeated subwords, dominant repeated n-grams, transport errors, or engine death. The full default run issues 80 bounded requests and can take several minutes.
+For disruptive candidate testing, `scripts/run-canary.sh` prevalidates profiles, traps `EXIT`, `INT`, `TERM`, and `HUP`, removes the candidate, restarts the original service, and verifies its exact alias/context. Restoration failure overrides the test status.
 
 ## API exposure
 
-The endpoint has no authentication and binds to loopback by default. For remote access, prefer a specific trusted LAN/Tailnet `BIND_ADDRESS` or place an authenticated gateway such as LiteLLM in front. Avoid `0.0.0.0` unless a firewall controls port 8000; never expose it directly to the Internet.
+The endpoint is unauthenticated and loopback-only by default. For remote use, bind only to a specific trusted LAN/Tailnet address or place an authenticated gateway such as LiteLLM in front. Never expose it directly to the public Internet.
 
-## Vision capacity tradeoff
+## Reproducibility and privacy
 
-| Mode | Observed KV pool | Full 262K concurrency estimate |
-|---|---:|---:|
-| Text-only (`--language-model-only`) | 734,003 tokens | 2.80× |
-| Vision, 16 images, video disabled | 545,259 tokens | 2.08× |
+No weights, private environment files, raw responses, benchmark fixtures, hostnames, GPU UUIDs, PCI IDs, or private paths belong in the repository. Public evidence contains aggregate measurements and hashes only.
 
-Vision loads approximately 1.05GiB of BF16 visual tensors. The validated 262,144-token maximum remains intact.
-
-## Zcode
-
-Merge [examples/zcode-config.fragment.json](examples/zcode-config.fragment.json), replace `SERVER_LAN_IP`, and fully restart Zcode. The server now defaults `enable_thinking` to false, so clients that omit or mis-serialize that option still receive final content. Thinking remains available per request with `"chat_template_kwargs":{"enable_thinking":true,"reasoning_effort":"low"}`. Raising output tokens or timeouts is not a substitute for selecting the intended thinking mode.
-
-## Operations
-
-```bash
-systemctl --user status glm53-2x-rtxpro6000.service
-systemctl --user restart glm53-2x-rtxpro6000.service
-systemctl --user stop glm53-2x-rtxpro6000.service
-docker logs glm53-flash-2x-rtxpro6000
-```
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) before changing IOMMU, P2P, driver, or Docker storage settings.
-
-## Reproducibility policy
-
-Pin every model, image, runtime, template, and benchmark revision. Keep text-only and multimodal measurements separate. State metric boundaries and hardware topology. Never commit credentials, model files, Docker layers, or machine-specific secrets.
+Run local validation with:
 
 ```bash
 scripts/ci.sh
 ```
 
-## Credits and licenses
-
-This recipe relies on Brandon M. Music, Z.ai, T.J. Purtell, Luke Alonso, Local Inference Lab and B12x/SparkInfer contributors, Turboderp and ExLlamaV3 contributors, Johnny-Liou, CZT0, ZJY0516, Jared (as named by the runtime author), vLLM contributors, cstechdev, MiaAI-Lab contributors, Hugging Face, PyTorch, NVIDIA, Docker/Moby, and other upstream contributors. See [ATTRIBUTIONS.md](ATTRIBUTIONS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for exact contributions, immutable links, licenses, and unresolved gaps.
-
-Original recipe scripts and documentation are Apache-2.0. The checkpoint, runtime, containers, drivers, CUDA stack, and dependencies retain their own licenses. In particular, the ShapleyMCG checkpoint is source-available under its own non-OSI terms.
+Original downstream scripts and documentation are Apache-2.0. Models, DFlash2, the runtime image, CUDA components, and dependencies retain their own licenses.

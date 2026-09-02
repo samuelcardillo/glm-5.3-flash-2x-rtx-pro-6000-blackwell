@@ -11,6 +11,7 @@ from typing import Any
 REDACTED = "<redacted>"
 SENSITIVE_KEYS = re.compile(r"(?:authorization|api[_-]?key|token|secret|password|request|prompt|content|host(?:name)?|gpu|uuid|pci)", re.I)
 PATH_RE = re.compile(r"^(?:/|~[/\\]|[A-Za-z]:[\\/])")
+URL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 GPU_RE = re.compile(r"(?:GPU-[0-9a-f-]{8,}|\b[0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]\b)", re.I)
 SECRET_FLAGS = {"--api-key", "--token", "--password", "--authorization"}
 PATH_FLAGS = {"--model", "--download-dir", "--chat-template", "--served-model-name-path"}
@@ -63,6 +64,15 @@ def redact_args(args: list[str]) -> list[str]:
             result.append(arg.split("=", 1)[0] + "=<redacted-path>")
         elif any(arg.startswith(flag + "=") for flag in HOST_FLAGS):
             result.append(arg.split("=", 1)[0] + "=" + REDACTED)
+        elif "=" in arg:
+            name, value = arg.split("=", 1)
+            if URL_RE.match(value):
+                result.append(name + "=<redacted-url>")
+            else:
+                cleaned = redact(value, name)
+                result.append(name + "=" + str(cleaned))
+        elif URL_RE.match(arg):
+            result.append("<redacted-url>")
         else:
             result.append(redact(arg))
     return result

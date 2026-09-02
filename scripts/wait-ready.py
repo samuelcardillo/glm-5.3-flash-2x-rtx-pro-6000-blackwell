@@ -74,7 +74,13 @@ def ready(base_url: str, model: str, context: int) -> bool:
 def container_state(name: str) -> str:
     try:
         result = subprocess.run(
-            ["docker", "inspect", "-f", "{{.State.Running}}", name],
+            [
+                "docker",
+                "inspect",
+                "-f",
+                "{{.State.Running}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
+                name,
+            ],
             text=True,
             capture_output=True,
             check=False,
@@ -85,7 +91,18 @@ def container_state(name: str) -> str:
         return "docker-unavailable"
     if result.returncode != 0:
         return "container-unavailable"
-    return "running" if result.stdout.strip() == "true" else "exited"
+    value = result.stdout.strip()
+    if value == "false" or value.startswith("false|"):
+        return "exited"
+    if value in ("true", "true|none"):
+        return "running"
+    if value == "true|healthy":
+        return "healthy"
+    if value == "true|unhealthy":
+        return "unhealthy"
+    if value == "true|starting":
+        return "starting"
+    return "container-unavailable"
 
 
 def process_running(pid: int) -> bool:
@@ -110,9 +127,14 @@ def main() -> int:
             if state == "exited" or (state == "container-unavailable" and container_seen):
                 print("container exited before readiness", file=sys.stderr)
                 return 1
-            if state == "running":
+            if state == "unhealthy":
+                print("container became unhealthy before readiness", file=sys.stderr)
+                return 1
+            if state in ("running", "healthy", "starting"):
                 container_seen = True
-                container_ok = True
+                # A configured healthcheck is the release-warmup gate. Containers
+                # without one retain legacy running-state behavior.
+                container_ok = state in ("running", "healthy")
             elif args.process_pid is not None and not process_running(args.process_pid):
                 print("candidate process exited before container readiness", file=sys.stderr)
                 return 1

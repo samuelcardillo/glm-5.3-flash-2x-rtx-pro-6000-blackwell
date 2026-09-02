@@ -1,17 +1,19 @@
-GLM-5.3 Flash on 2x RTX PRO 6000 Blackwell integration recipe
+GLM-5.3 Flash K3 + DFlash2 on 2x RTX PRO 6000 Blackwell integration recipe
 Copyright 2026 Samuel Cardillo
 
 This repository includes integration material adapted from or designed for use
-with third-party projects. See ATTRIBUTIONS.md and THIRD_PARTY_LICENSES/.
+with third-party projects. See ATTRIBUTIONS.md, THIRD_PARTY_NOTICES.md, and
+THIRD_PARTY_LICENSES/.
 
-scripts/serve.sh and the deployment profile are modified downstream adaptations
-of T.J. Purtell's Apache-2.0 dual-GPU runtime recipe. See THIRD_PARTY_NOTICES.md
-for named contributors, immutable provenance, and unresolved binary-image gaps.
+scripts/serve.sh, benchmark helpers, and the deployment profile are modified
+downstream adaptations of T.J. Purtell's Apache-2.0 v0.6 dual-GPU runtime
+recipe. Modified files are not represented as upstream originals.
 
-The tested quantized checkpoint was created by Brandon M. Music using
-ShapleyMCG/TR3 and is governed by the ShapleyMCG License 1.0. The required
-attribution notice is reproduced prominently in README.md and ATTRIBUTIONS.md.
+The target checkpoint was published by `wrldsuksgo2mars` from the Z.ai
+GLM-5.3 Flash lineage. The DFlash2 draft was published by Inco AI and is
+licensed CC BY-NC-ND 4.0 for research/evaluation; commercial use requires
+separate permission from Inco AI.
 
-The serving runtime and container were created by T.J. Purtell and contributors
-and are distributed separately under their own terms. This repository does not
-redistribute model weights or container layers.
+The serving runtime, models, CUDA components, and dependencies are distributed
+separately under their own terms. This repository does not redistribute model
+weights, draft weights, or container layers.

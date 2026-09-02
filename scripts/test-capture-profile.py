@@ -64,6 +64,21 @@ class CaptureProfileTests(unittest.TestCase):
         args = ["--host", "privatebox.local", "--worker-id", "GPU-" + "12345678-abcd", "--port", "8000"]
         self.assertEqual(mod.redact_args(args), ["--host", "<redacted>", "--worker-id", "<redacted>", "--port", "8000"])
 
+    def test_launch_args_redact_embedded_urls_and_paths(self):
+        mod = load_module()
+        args = [
+            "--endpoint=https://privatehost.example/v1",
+            "DATABASE_URL=postgres://alice:secret@privatehost/db",
+            "note=/home/alice/private/model",
+        ]
+        redacted = mod.redact_args(args)
+        rendered = json.dumps(redacted)
+        for forbidden in ("privatehost", "alice:secret", "/home/alice"):
+            self.assertNotIn(forbidden, rendered)
+        self.assertEqual(redacted[0], "--endpoint=<redacted-url>")
+        self.assertEqual(redacted[1], "DATABASE_URL=<redacted-url>")
+        self.assertEqual(redacted[2], "note=<redacted-path>")
+
     def test_file_hash_is_content_based(self):
         mod = load_module()
         with tempfile.TemporaryDirectory() as tmp:

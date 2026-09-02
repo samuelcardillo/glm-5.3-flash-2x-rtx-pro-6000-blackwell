@@ -1,80 +1,77 @@
-# Validation and benchmark notes
+# Qualified v0.6 results
 
-These numbers are acceptance evidence for one exact deployment, not universal performance claims.
+These are local observations for one immutable profile, not universal performance claims.
 
-## Boundaries
+## Frozen profile
 
-- Decode throughput excludes TTFT unless explicitly stated.
-- TTFT includes server tokenization/prefill as seen by the HTTP client.
-- Vision latency is end-to-end for one generated PNG and short answer.
-- KV pool/concurrency are vLLM startup reports, not physical-memory arithmetic.
-- Long-context runs used the same checkpoint, image, GPU pair, cap, and KV profile.
+- Target: `wrldsuksgo2mars/GLM-5.3-Flash-EXL3-K3-v1@319d66a8b53092b491f698440ecea781e4ddd4e4`
+- DFlash2: `incoai/GLM-5.3-Flash-DFlash2@dc77ff1c99eeb2df044ee3d4f0094eb033fee410`
+- Runtime OCI index: `sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b`
+- TP2 + EP2 + DCP2; B12x sparse MLA
+- FP8 target KV; replicated BF16 DFlash2 K5 draft KV
+- Maximum context 1,048,576; batch cap 2,048; scheduler slots 16
+- Maximum 16 images; video disabled
+- Thinking off by default; ReplaySSM absent
+- GPU power during measurements: Max-Q card 300 W, full workstation card 600 W
 
-| Workload | Result |
+## Capability acceptance
+
+| Check | Result |
 |---|---:|
-| Exact 128,000-token needle retrieval | pass |
-| Exact 261,900-token needle retrieval | pass |
-| 261,798-token prompt | 69.33 seconds TTFT |
-| Vision semantic number test | `73`, 8.91 seconds over LAN |
-| Tool call after vision cutover | correct structured arguments |
-| Zcode attached image to `Write` | exact `73\n` file |
+| Health, exact alias and 1,048,576 context | pass |
+| Thinking-off exact `TEXT_OK` | pass |
+| Structured tool call | pass |
+| Semantic image number | pass |
+| Ordered 1 / 4 / 16 images | pass |
+| Image 17 rejection | pass |
+| Exact 1,000,000-token six-needle retrieval | 6/6, 284.859 s |
+| Post-1M functional and 16-image retest | pass |
+| 32K/C4 repetition regression | 80/80, zero loops/errors |
+| Seven-case semantic content suite | 7/7 pass; 39.30% DFlash acceptance |
+| Candidate teardown and exact 262,144 control restoration | pass |
 
-Text-only and vision are separate lineages:
+The six records were placed near 5%, 25%, 50%, 75%, 95%, and 99%. The live server reported exactly 1,000,000 prompt tokens. The successful retry used a 512-token output budget and completed with `finish_reason=stop`; the initial 128-token attempt retrieved too verbosely and ended at the output limit, so it was rejected rather than counted.
 
-| Profile | KV pool | 262K concurrency estimate |
-|---|---:|---:|
-| `--language-model-only` | 734,003 | 2.80× |
-| Vision: 16 images, video off | 545,259 | 2.08× |
+## Decode throughput
 
-Vision loads about 1.05GiB of BF16 visual tensors and changes allocation.
+Method: fixed code-agent fixture, 256 forced output tokens per sequence, temperature 0.2, fixed seed, two warmups plus five measured runs per point. Each sequence is timed from its own first through last streamed token. Aggregate decode sums per-sequence rates and excludes TTFT. DFlash metrics are Prometheus counter deltas.
 
-Reproduce short acceptance with `python3 scripts/verify.py`. Reproduce exact 128,000- and 261,900-token needle retrieval with:
+| Concurrency | Median | Min | Max | Median acceptance | Committed tokens / target pass |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 179.50 | 176.89 | 190.35 | 64.92% | 4.246 |
+| 2 | 317.07 | 293.49 | 358.56 | 65.45% | 4.273 |
+| 4 | 493.40 | 472.10 | 497.96 | 65.97% | 4.298 |
+| 8 | 759.72 | 715.26 | 773.97 | 66.32% | 4.316 |
+| 16 | 1,045.47 | 993.33 | 1,065.17 | 66.46% | 4.323 |
 
-```bash
-python3 scripts/verify-long-context.py \
-  --base-url http://127.0.0.1:8000 \
-  --model glm-5.3-flash-local \
-  --targets 128000,261900
-```
+Every measured point had positive draft and target-pass counters, `accepted + rejected = drafted`, exact usage/token counts, the expected finish reason, and an explicit SSE `[DONE]` marker.
 
-The long-context script constructs exact chat-prompt lengths through the server's `/tokenize` endpoint and verifies `usage.prompt_tokens`. A pre-publication run on the qualified service passed at 128,000 tokens in 29.635 seconds and 261,900 tokens in 57.372 seconds. These timings are a separate request lineage from the historical 261,798-token/69.33-second TTFT row above.
+### Upstream comparison
 
-The later large-task/repetition investigation, including raw-stream context sweeps, the thinking-control fix, and the matched ReplaySSM red/green isolation (11/80 shared-prefix loops plus an EngineCore crash with ReplaySSM, versus 0/120 loops/errors without it), is documented in [2026-09-01-corruption-investigation.md](2026-09-01-corruption-investigation.md).
+T.J. Purtell's final v0.6 evidence reports 222.6 tok/s at C1 and 1,067.2 tok/s at C16 with both GPUs explicitly capped at 400 W. The local C16 result is 2.0% lower. Upstream's initially selected profile reported 1,004.9 tok/s at C16, which the local result exceeds by 4.0%.
 
-## Qualified runtime overlays (2026-09-01)
+This host has an asymmetric GPU pair: the Max-Q card ran at 300 W and has a 325 W maximum; the full workstation card ran at 600 W. It cannot reproduce the upstream 400 W / 400 W condition. The lower C1 result must not be described as a runtime-only regression or speedup because hardware, power and historical checkpoint lineages differ.
 
-The accepted derived image is `local/glm53-runtime-fixes:780ae1d07a501f61f7a2b6cb829eaff123c9661236a3f62f4bedd909e8e56d70`. It contains the two official XGrammar correctness backports, DCP-aware sparse-indexer workspace sizing, and the mixed-prefill scheduler overlay. The qualified profile enables `MIXED_PREFILL_CHUNK=skip`; the overlay's default `off` mode preserves stock scheduling.
+## Prefill and TTFT
 
-### Workspace result
+Method: exact-length unique prompts, no prefix reuse, three runs per point. TTFT is client request to first streamed token and includes server tokenization, prefill and one-token handoff.
 
-Profiler-level A1/A2 comparison recovered 0.99 GiB of usable KV-cache memory per rank. Reported KV-cache capacity increased from 365,782 to 573,058 tokens, a gain of 207,276 tokens (56.67%). Matched prose and structured TTFT/decode changes remained inside the 3% acceptance gate. A post-readiness `nvidia-smi` snapshot is not a workspace-saving measurement because vLLM reinvests reclaimed workspace into a larger KV cache.
+| Prompt tokens | Median prompt tok/s | Min | Max | Median TTFT |
+|---:|---:|---:|---:|---:|
+| 8,192 | 4,258.74 | 4,251.83 | 4,264.21 | 1.924 s |
+| 16,384 | 4,107.44 | 4,101.25 | 4,124.31 | 3.989 s |
+| 32,768 | 4,219.75 | 4,218.10 | 4,221.59 | 7.765 s |
+| 65,536 | 4,230.59 | 4,219.19 | 4,233.01 | 15.491 s |
+| 128,000 | 4,199.66 | 4,196.44 | 4,202.44 | 30.479 s |
 
-### Mixed-prefill result
+## Capacity
 
-Five matched runs used five distinct-prefix fixtures of exactly 160,025 prompt tokens. Decode throughput below is usage-based and excludes the first streamed token; SSE event frequency is not treated as token throughput.
+The runtime reported 2,926,692 KV-cache tokens and 2.79 maximum-context request equivalents. This is a scheduler report, not physical-memory arithmetic.
 
-| Policy | Isolated decode | Active decode during prefill | Decoder wall | Prefill TTFT | Combined makespan |
-|---|---:|---:|---:|---:|---:|
-| `off` | 188.98 tok/s | 23.90 tok/s | 42.97 s | 40.50 s | 42.97 s |
-| `skip` | 189.04 tok/s | 188.02 tok/s | 5.60 s | 44.41 s | 44.58 s |
+## Historical aligned profile
 
-`skip` recovered 99.42% of the measured decode loss. Aggregate throughput decreased 3.61%, within the 10% gate, and every prefill completed with valid ordering. Positive caps 128 and 512 were screened separately and rejected.
+The superseded Brandon/TR3 4-bpw profile used a different checkpoint, NVFP4 KV, adaptive native MTP, local runtime overlays and a 262,144-token ceiling. Its key evidence was 573,058 KV tokens after workspace optimization, 189.04 tok/s isolated decode in a different fixture, exact 261,900-token retrieval, and 80/80 clean repetition requests. Those numbers are retained here only as historical lineage and are not a matched before/after benchmark.
 
-### Rejected spin-wait experiment
+## Evidence policy
 
-The isolated 16 ms spin-wait candidate reduced active decode CPU by only 6.15% at the median and 4.59% at P90, far below the required 50%. It is not part of the accepted image chain.
-
-### Final candidate acceptance
-
-- Default thinking off, explicit low/max thinking, native and concurrent/multiple tools, strict JSON schema, one image, five distinct images, image cap 16, and video rejection: pass.
-- Exact 32,768- and 261,900-token needle retrieval with server-reported prompt counts: pass.
-- Fresh-process 261,900-token prefill: 78.516 s cold TTFT, zero cold cache hits; 4.831 s warm TTFT with a 92.86% block-aligned hit rate.
-- Repetition regression: 80 requests (40 thinking off, 40 maximum thinking) at 32,755 prompt tokens and concurrency 4; zero loops and zero errors.
-- Long generation: 2,304 completion tokens in 12.295 s, no bounded repetition finding, concurrent distinct-prefix request passed, engine healthy afterward.
-- Five-run prose: median TTFT 0.1582 s and median decode 85.78 tok/s.
-- Five-run structured output: median TTFT 0.1581 s and median decode 142.05 tok/s.
-- Candidate teardown and restoration of the proven endpoint: pass.
-
-These finite tests do not guarantee that arbitrary autoregressive requests can never repeat or starve. In particular, `skip` deliberately defers a long prefill while an already-running decode remains active; the measured trade-off must be considered for continuously saturated workloads.
-
-Archive JSON with `nvidia-smi`, topology, `docker inspect`, and logs. Never compare results unless checkpoint revision, template hash, image digest, arguments, hardware, context, and requests match.
+Private receipts retain raw machine-bound evidence locally. Public documentation records aggregate timings, counters and immutable identities without prompts, responses, reasoning, paths, hostnames, GPU UUIDs, PCI IDs or logs. Decode throughput is never inferred from SSE event count.

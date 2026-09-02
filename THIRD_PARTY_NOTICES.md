@@ -1,81 +1,59 @@
 # Third-party notices and supply-chain disclosures
 
-This repository publishes documentation and integration scripts only. It does not redistribute model weights or container layers. Users download those artifacts from their original registries and remain responsible for their terms. This ledger distinguishes verified source/license provenance from unresolved binary-image provenance.
+This repository publishes integration scripts and documentation only. It does not redistribute model weights or container layers. Users acquire those artifacts from their original publishers and remain responsible for their terms.
 
-## Model lineages
+## Z.ai GLM-5.3 Flash
 
-### Z.ai GLM-5.3 Flash
+- Creator/publisher: Z.AI Co., Ltd / Z.ai (`zai-org`)
+- Base lineage: `zai-org/GLM-5.3-Flash-BF16@f12e0fe1f6b2ea274c11a569582edfd99d993c5e`
+- License at that revision: MIT
+- Retained text: [`THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt`](THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt)
 
-- Creator/publisher: **Z.AI Co., Ltd / Z.ai (`zai-org`)**
-- Tested base: `zai-org/GLM-5.3-Flash-BF16@f12e0fe1f6b2ea274c11a569582edfd99d993c5e`
-- License at that revision: MIT, copyright 2026 Z.AI Co., Ltd
-- Exact retained text: [`THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt`](THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt)
+## K3 EXL3 target
 
-### Brandon Music / ShapleyMCG TR3 checkpoint used here
+- Publisher: `wrldsuksgo2mars`
+- Artifact: `wrldsuksgo2mars/GLM-5.3-Flash-EXL3-K3-v1@319d66a8b53092b491f698440ecea781e4ddd4e4`
+- Card declaration: MIT
+- The pinned snapshot has no standalone `LICENSE` file. The base-model MIT text is retained, but this recipe does not fabricate or imply a separately retrieved target-license file.
+- Target-card lineage: GPTQModel `0565af7ce20a93df9bbc0e5563d7c6f60916f41a`, EXL3 MCG K3, 16 shards, 127.30GiB.
 
-- Quantizer/publisher: **Brandon M. Music (`brandonmusic`)**
-- Tested artifact: `brandonmusic/GLM-5.3-Flash-tr3-4bpw@5ab363a8dcf6405955fd5f99671e01a1c9fb124b`
-- License at this exact revision: ShapleyMCG License 1.0. Direct download SHA-256 of `LICENSE`: `9a354667162e40201fa556e29ae7a327cdb112eacaa8ef100106e6063635e28a`.
-- Exact retained text: [`THIRD_PARTY_LICENSES/ShapleyMCG-LICENSE-1.0.txt`](THIRD_PARTY_LICENSES/ShapleyMCG-LICENSE-1.0.txt)
-- Required notice and citation are reproduced in README and ATTRIBUTIONS.
+## DFlash2 draft
 
-The upstream T.J. Purtell runtime repository originally pinned an older checkpoint snapshot, `4739eb1bcfd478e8a32da6358908567bc3a9ac51`, whose `LICENSE` was the Z.ai MIT text. **That is not the checkpoint revision deployed or downloaded by this recipe.** Do not transfer the older snapshot's MIT classification to `5ab363…` or current HEAD.
+- Publisher: Inco AI
+- Artifact: `incoai/GLM-5.3-Flash-DFlash2@dc77ff1c99eeb2df044ee3d4f0094eb033fee410`
+- License: CC BY-NC-ND 4.0 for research and evaluation
+- Commercial use: requires separate permission from Inco AI
+- Retained legal text: [`THIRD_PARTY_LICENSES/CC-BY-NC-ND-4.0.txt`](THIRD_PARTY_LICENSES/CC-BY-NC-ND-4.0.txt), SHA-256 `cb6303892198afb24723a78e59be37222ffd7494690fca00d9307347df50e0b6`
 
-## Runtime and code lineages
+The draft is not bundled or modified. Its restrictions are not superseded by this repository's Apache-2.0 license or the runtime's license.
 
-### T.J. Purtell dual-GPU runtime
+## T.J. Purtell v0.6 runtime
 
-- Author/integrator: **T.J. Purtell (`tpurtell`)** and contributors
-- Source: [`tpurtell/glm-5.3-flash-ext3-4-bit-2x-rtx`](https://github.com/tpurtell/glm-5.3-flash-ext3-4-bit-2x-rtx) at `3bff1d5fdbafcc3d9865abebddbfe1eef435adef`
-- License: Apache-2.0
-- Contribution used here: container composition, GLM/EXL3/B12x integration, adaptive MTP, ReplaySSM GLM ports, launch profile, tests, and benchmark foundations.
-- Modified-file notice: this repository's `scripts/serve.sh`, profile defaults, systemd packaging, template repair, and verification tooling are downstream integration adaptations and are not claimed to be upstream originals.
+- Author/integrator: T.J. Purtell (`tpurtell`) and contributors
+- Source: [`tpurtell/glm-5.3-flash-ext3-4-bit-2x-rtx`](https://github.com/tpurtell/glm-5.3-flash-ext3-4-bit-2x-rtx) at `b91f092861d4f2534a4cb8053a6552c714bacba7`
+- Tag: `v0.6.0` (annotated but unsigned)
+- License: Apache-2.0 for the repository source
+- Referenced image: OCI index `sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b`
+- Contribution: GLM/DFlash2 V2 integration, EAGLE3 taps, independent draft KV, DCP-aware prefix hashing, DCP1 draft/DCP2 target separation, EXL3 EP2 loading, B12x MoE/MCG paths, sparse attention and release warmup.
 
-The source repository name contains `ext3`; the quantization technology is EXL3/TR3.
+The downstream launcher deliberately changes upstream operational defaults: it selects exactly two GPUs, binds to loopback, pins the image digest, disables ReplaySSM, defaults thinking off, validates configuration as data, and delegates lifecycle ownership to systemd or the foreground process.
 
-### B12x / SparkInfer
+## Other runtime lineages
 
-- Upstream author named in package metadata: **Luke Alonso**
-- Upstream organization/contributors: **Local Inference Lab and B12x contributors**
-- Upstream: [`local-inference-lab/b12x`](https://github.com/local-inference-lab/b12x)
-- GLM/EXL3/PCIe fork: **T.J. Purtell and fork contributors**, [`tpurtell/sparkinfer-glmrt`](https://github.com/tpurtell/sparkinfer-glmrt) at `988246c8b007c9c1c2006eb677f6fa4b26aeb561`
-- License: Apache-2.0
-
-### ExLlamaV3 / EXL3 / Trellis
-
-- Primary author: **Turboderp**
-- Contributors: **ExLlamaV3 contributors**
-- Source: [`turboderp-org/exllamav3`](https://github.com/turboderp-org/exllamav3)
-- License: MIT, copyright 2025 Turboderp
-- Contribution: EXL3/Trellis format, codebooks, dequantization, GEMM/PTX, and inference foundations vendored or adapted by the B12x/runtime lineage.
-
-### vLLM and specifically credited contributors
-
-- Project: **vLLM project and contributors**
-- Source: [`vllm-project/vllm`](https://github.com/vllm-project/vllm)
-- Base version lineage: commit [`487ecf187d3dfe74d2cf6119a92881dba403c219`](https://github.com/vllm-project/vllm/commit/487ecf187d3dfe74d2cf6119a92881dba403c219)
-- License: Apache-2.0
-- **Johnny-Liou**: ReplaySSM/speculative-decode PRs [#48792](https://github.com/vllm-project/vllm/pull/48792), [#49847](https://github.com/vllm-project/vllm/pull/49847), and [#49887](https://github.com/vllm-project/vllm/pull/49887).
-- **CZT0**: dynamic speculative-decode graph fix [#49652](https://github.com/vllm-project/vllm/pull/49652).
-- **ZJY0516**: upstream GLM-5.3 vLLM support reference [#53906](https://github.com/vllm-project/vllm/pull/53906).
-- **Jared**: separately thanked by the pinned runtime author for GLM upstream work; no surname or account was supplied in that source, so no further identity is asserted here.
-
-### Other named projects and organizations
-
-- **MiaAI-Lab contributors**: nearby dual-DGX-Spark SM12x deployment and stability references, including [`GLM-5.3-Flash-NVFP4-Dual-DGX-Spark`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-NVFP4-Dual-DGX-Spark) and the scheduler/spin-wait comparison source [`GLM-5.3-Flash-EXL3-2x-DGX-Sparks`](https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks) at `c190db1ae17ba8dff20129ed1f308d10c63cf37d`; MIT, copyright 2026 MiaAI-Lab.
-- **Hugging Face team and Transformers contributors**: model configuration, processing, tokenization, and Hub distribution; Transformers is Apache-2.0.
-- **PyTorch contributors**: tensor/compiler runtime. PyTorch uses its project license plus bundled third-party notices; preserve the complete installed notice bundle when redistributing an image.
-- **NVIDIA Corporation and CUTLASS contributors**: CUDA, drivers, RTX PRO hardware, CUTLASS, CuTe DSL, and NVIDIA Container Toolkit. CUTLASS main source is BSD-3-Clause; CuTe DSL and CUDA components include NVIDIA EULA terms. See [CUDA EULA](https://docs.nvidia.com/cuda/eula/index.html) and [CuTe DSL license](https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/license.html).
-- **Docker/Moby, Docker CLI, and Compose contributors**: external container tooling, primarily Apache-2.0 source projects; Docker Desktop and hosted-service terms are separate.
-- **`cstechdev`**: publisher of the pinned day-zero CUDA 13/SM120 GLM/vLLM base image.
+- B12x/SparkInfer: Luke Alonso, Local Inference Lab, contributors, and T.J. Purtell's GLM fork; Apache-2.0 source lineage.
+- ExLlamaV3/EXL3/Trellis: Turboderp and contributors; MIT source lineage.
+- vLLM: vLLM project and contributors; Apache-2.0 source lineage.
+- GPTQModel: GPTQModel project and contributors.
+- Hugging Face/Transformers, PyTorch, NVIDIA, CUTLASS/CuTe, CUDA, NVIDIA Container Toolkit, Docker/Moby and their contributors retain their respective licenses and notices.
 
 ## Unresolved binary-image provenance
 
-These gaps do not cause this documentation repository to redistribute the affected binary code, but they are material supply-chain and downstream-redistribution concerns:
+The composed v0.6 runtime copies or depends on code and binaries from lower images whose complete public source/build provenance and notice inventory are not available here:
 
-1. `ghcr.io/tpurtell/deepseek-v4-flash-0731-exl3-k2-spark@sha256:86c8c1054f9c24454949e37031ce6165c007963aa0c0ef30fa884f6d4170af32` supplies copied EXL3/vLLM adapter files. The corresponding public source repository for claimed commit `30038602b71395f481ef4a6edfe4fcf8551d9c15` was not located.
-2. `cstechdev/vllm:glm53-flash-nope-sm120-cu130-20260826-r1@sha256:0bd709e80b8ff13ae5de8f7d7f708a499fade3a26970d56afb1be2ff3860fde5` does not expose a discoverable public patch/source repository or complete build revision in its labels.
+1. The EXL3 source-image lineage identifies fork commit `30038602b71395f481ef4a6edfe4fcf8551d9c15`, but its exact public source repository remains unresolved.
+2. The `cstechdev` CUDA 13/SM120 GLM/vLLM base image does not expose complete public build/source provenance.
+3. A single Apache-2.0 OCI label does not establish the licensing status of every copied adapter, binary, NVIDIA component or model.
 
-Do not redistribute, mirror, or represent the composed runtime image as fully source-audited until those publishers provide source/build provenance and complete third-party notices. Apache-2.0 provenance for upstream vLLM does not by itself establish the licensing status of every modified binary or copied adapter file.
+This repository references but does not mirror the image. Do not redistribute or represent the composed binary as fully source-audited until the publishers provide complete source/build provenance and third-party notices.
 
-Corrections with primary-source evidence are welcome through GitHub issues.
+Corrections supported by primary-source evidence are welcome through GitHub issues.

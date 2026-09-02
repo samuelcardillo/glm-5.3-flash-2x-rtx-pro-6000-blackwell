@@ -15,7 +15,7 @@
           "tool_call": true,
           "structured_output": true,
           "modalities": {"input": ["text", "image"], "output": ["text"]},
-          "limit": {"context": 262144, "output": 32768},
+          "limit": {"context": 1048576, "output": 32768},
           "options": {"enable_thinking": false},
           "reasoning": {
             "enabled": true,

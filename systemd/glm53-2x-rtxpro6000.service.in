@@ -1,5 +1,5 @@
 [Unit]
-Description=GLM-5.3 Flash EXL3/TR3 on 2x RTX PRO 6000 Blackwell
+Description=GLM-5.3 Flash K3 + DFlash2 on 2x RTX PRO 6000 Blackwell
 
 [Service]
 Type=simple
