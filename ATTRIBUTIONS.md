@@ -4,7 +4,7 @@ This repository is an integration recipe. It does not claim authorship of GLM-5.
 
 ## Models
 
-- **Z.ai / `zai-org`** created and published GLM-5.3 Flash. The pinned base lineage is `zai-org/GLM-5.3-Flash-BF16@f12e0fe1f6b2ea274c11a569582edfd99d993c5e`, MIT. Its license text is retained in [`THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt`](THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt).
+- **Z.ai / `zai-org`** created and published GLM-5.3 Flash. The pinned base lineage is `zai-org/GLM-5.3-Flash-BF16@f12e0fe1f6b2ea274c11a569582edfd99d993c5e`, MIT. The updated official chat template is pinned separately at `a5b45eb41df6402735dedc900be14a42e8d5e538`. Its license text is retained in [`THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt`](THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt).
 - **`wrldsuksgo2mars`** published the K3 EXL3/MCG target used here: `wrldsuksgo2mars/GLM-5.3-Flash-EXL3-K3-v1@319d66a8b53092b491f698440ecea781e4ddd4e4`. The card credits Z.ai, Brandon for earlier K4 qualification work, MiaAI-Lab, GPTQModel, ExLlamaV3, vLLM and B12x contributors.
 - **GPTQModel contributors** supplied the quantization framework identified by the target card.
 - **Turboderp and ExLlamaV3 contributors** created the EXL3/Trellis format and optimized inference foundations.
@@ -31,6 +31,6 @@ Hugging Face, Transformers, PyTorch, NVIDIA, CUTLASS/CuTe, CUDA, NVIDIA Containe
 
 ## Downstream contribution
 
-This repository contributes a safety-hardened integration profile: immutable artifact pins, strict non-executable configuration parsing, loopback publication, exact GPU selection, a derived thinking-control template, research-license gating, canary restoration, privacy-safe capability tests, and local 1M/16-image/performance evidence.
+This repository contributes a safety-hardened integration profile: immutable artifact pins, strict non-executable configuration parsing, configurable private-network publication, exact GPU selection, a source-pinned official tool-result template with a minimal thinking-control derivation, research-license gating, canary restoration, privacy-safe capability tests, and local 1M/16-image/performance evidence.
 
 Modified downstream files are not represented as upstream originals. Corrections with primary-source evidence are welcome through GitHub issues.

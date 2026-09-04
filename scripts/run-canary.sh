@@ -53,8 +53,13 @@ for raw in source.read_text().splitlines():
     if not re.fullmatch(r'[A-Z][A-Z0-9_]*', key) or key in values:
         raise SystemExit('invalid or duplicate control dotenv key')
     values[key] = value
+readiness_host = values.get('BIND_ADDRESS', '127.0.0.1')
+if readiness_host == '0.0.0.0':
+    readiness_host = '127.0.0.1'
+elif readiness_host in ('::', '::1'):
+    readiness_host = '[::1]'
 fields = (
-    values.get('BIND_ADDRESS', '127.0.0.1'),
+    readiness_host,
     values.get('PORT', '8000'),
     values.get('CONTAINER_NAME', 'glm53-longctx-mtp'),
     values.get('SERVED_MODEL_NAME', 'overlord-testing'),

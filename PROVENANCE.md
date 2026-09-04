@@ -18,11 +18,14 @@ This recipe treats the base model, quantized target, speculative drafter, runtim
 | Base GLM image | `sha256:0bd709e80b8ff13ae5de8f7d7f708a499fade3a26970d56afb1be2ff3860fde5` |
 | EXL3 source image | `sha256:86c8c1054f9c24454949e37031ce6165c007963aa0c0ef30fa884f6d4170af32` |
 | Original K3 chat template | `sha256:34d5ee66b12fa6446cdae131c352b8f68cd85369e0e6fda115583805fada3891` |
-| Derived thinking-control template | `sha256:5bcdf9be4e5b4a6cf2017f74f7e0b5c7f91bb814a275438dc678dd48da1f81b5` |
+| Updated official Flash template | `zai-org/GLM-5.3-Flash-BF16@a5b45eb41df6402735dedc900be14a42e8d5e538`, `sha256:0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5` |
+| Derived thinking-control template | `sha256:058ef635c21b51eebb8abe880319c9186bdb54387c51114c88e9750f1015a8cf` |
 
 Abbreviated image-internal commit identities above are preserved as reported by the upstream v0.6 provenance. The runtime recipe commit and OCI digests are the portable acquisition anchors.
 
 The `v0.6.0` tag is annotated but unsigned. This recipe pins the Git commit and OCI digest independently and does not treat the tag name as authenticated provenance.
+
+The vendored official Flash template incorporates Z.ai's September 4, 2026 tool-result reordering fix. The downstream derivation changes only the two thinking-control expressions, retains the official tool-result logic byte-for-byte, and accepts the previously qualified derived hash solely as a one-time migration source.
 
 ## Checkpoint identity
 
@@ -59,7 +62,7 @@ The former Brandon-specific template patch, XGrammar/workspace/mixed-prefill der
 - GLM 4.7 tool parser and GLM 4.5 reasoning parser
 - Thinking disabled by default through the derived template
 - ReplaySSM absent
-- Loopback publication and exact two-device selection
+- Loopback canary qualification, configurable private-network publication, and exact two-device selection
 
 ## Qualified host
 
@@ -83,7 +86,9 @@ Hardware facts are intentionally stated by class without publishing UUIDs, PCI a
 - Exact 8K–128K prefill medians: 4,107–4,259 prompt tok/s
 - Repetition regression: 80 requests, zero loops and zero errors
 - Seven-case semantic content suite: 7/7 pass; 39.30% aggregate DFlash acceptance
-- Candidate teardown and restoration of `overlord-testing` at 262,144 tokens: pass
+- Official template tool-result sorting/fallback and thinking-control render checks: pass
+- Updated-template live text, structured tool, semantic vision, 16-image, image-17 rejection, and exact 1M retrieval checks: pass
+- Candidate teardown and restoration of `overlord-testing` at 1,048,576 tokens: pass
 
 See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for metric definitions and limitations.
 

@@ -6,6 +6,8 @@ This repository publishes integration scripts and documentation only. It does no
 
 - Creator/publisher: Z.AI Co., Ltd / Z.ai (`zai-org`)
 - Base lineage: `zai-org/GLM-5.3-Flash-BF16@f12e0fe1f6b2ea274c11a569582edfd99d993c5e`
+- Updated official chat template: `zai-org/GLM-5.3-Flash-BF16@a5b45eb41df6402735dedc900be14a42e8d5e538`
+- Vendored template SHA-256: `0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5`
 - License at that revision: MIT
 - Retained text: [`THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt`](THIRD_PARTY_LICENSES/ZAI-GLM-5.3-Flash-BF16-MIT.txt)
 
@@ -36,7 +38,7 @@ The draft is not bundled or modified. Its restrictions are not superseded by thi
 - Referenced image: OCI index `sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b`
 - Contribution: GLM/DFlash2 V2 integration, EAGLE3 taps, independent draft KV, DCP-aware prefix hashing, DCP1 draft/DCP2 target separation, EXL3 EP2 loading, B12x MoE/MCG paths, sparse attention and release warmup.
 
-The downstream launcher deliberately changes upstream operational defaults: it selects exactly two GPUs, binds to loopback, pins the image digest, disables ReplaySSM, defaults thinking off, validates configuration as data, and delegates lifecycle ownership to systemd or the foreground process.
+The downstream launcher deliberately changes upstream operational defaults: it selects exactly two GPUs, restricts publication to a configured private/loopback address, pins the image digest, disables ReplaySSM, defaults thinking off, validates configuration as data, and delegates lifecycle ownership to systemd or the foreground process. Its derived template modifies the official template only to make thinking opt-out explicit.
 
 ## Other runtime lineages
 

@@ -12,7 +12,7 @@ source "$ROOT/scripts/validate-config.sh"
 IMAGE="$RUNTIME_IMAGE"
 mkdir -p "$CACHE_DIR"
 DERIVED_TEMPLATE="$CACHE_DIR/chat_template.k3-thinking-control.jinja"
-python3 "$ROOT/scripts/apply-thinking-template.py" "$MODEL_DIR" "$DERIVED_TEMPLATE"
+python3 "$ROOT/scripts/apply-thinking-template.py" "$DERIVED_TEMPLATE"
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   docker pull "$IMAGE"
 fi

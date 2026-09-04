@@ -32,14 +32,14 @@ Confirm the exact target, draft, image digest and profile before changing memory
 
 ## Thinking leaks into final content
 
-The pinned K3 template always opens a reasoning block and does not natively honor `enable_thinking=false`. The launcher automatically derives and mounts a source-hash-pinned template from `MODEL_DIR/chat_template.jinja`; it does not mutate the checkpoint.
+The pinned K3 template always opens a reasoning block and does not natively honor `enable_thinking=false`. The launcher automatically derives and mounts a source-hash-pinned template vendored from the official Flash revision `a5b45eb41df6402735dedc900be14a42e8d5e538`; it does not mutate the checkpoint. This source includes Z.ai's September 4, 2026 tool-result reordering fix.
 
 Expected hashes:
 
-- source: `34d5ee66b12fa6446cdae131c352b8f68cd85369e0e6fda115583805fada3891`
-- derived: `5bcdf9be4e5b4a6cf2017f74f7e0b5c7f91bb814a275438dc678dd48da1f81b5`
+- source: `0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5`
+- derived: `058ef635c21b51eebb8abe880319c9186bdb54387c51114c88e9750f1015a8cf`
 
-If the launcher rejects the source, do not bypass the check. Verify the pinned target revision. To opt into thinking explicitly:
+If the launcher rejects the source, do not bypass the check. Verify the vendored template and pinned official revision. To opt into thinking explicitly:
 
 ```json
 {"chat_template_kwargs":{"enable_thinking":true,"reasoning_effort":"low"}}

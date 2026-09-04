@@ -8,8 +8,15 @@ import os
 import tempfile
 from pathlib import Path
 
-BEFORE_SHA256 = "34d5ee66b12fa6446cdae131c352b8f68cd85369e0e6fda115583805fada3891"
-AFTER_SHA256 = "5bcdf9be4e5b4a6cf2017f74f7e0b5c7f91bb814a275438dc678dd48da1f81b5"
+ROOT = Path(__file__).resolve().parents[1]
+OFFICIAL_REPOSITORY = "zai-org/GLM-5.3-Flash-BF16"
+OFFICIAL_REVISION = "a5b45eb41df6402735dedc900be14a42e8d5e538"
+SOURCE_TEMPLATE = ROOT / "templates" / "zai-glm-5.3-flash-chat-template-a5b45eb4.jinja"
+BEFORE_SHA256 = "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5"
+AFTER_SHA256 = "058ef635c21b51eebb8abe880319c9186bdb54387c51114c88e9750f1015a8cf"
+REPLACEABLE_OUTPUT_SHA256S = frozenset(
+    {"5bcdf9be4e5b4a6cf2017f74f7e0b5c7f91bb814a275438dc678dd48da1f81b5"}
+)
 OLD_REASONING = "{%- set effective_reasoning_effort = reasoning_effort if reasoning_effort is defined and reasoning_effort in ['low', 'high'] else 'max' -%}"
 NEW_REASONING = "{%- set effective_reasoning_effort = none if (enable_thinking is defined and not enable_thinking) else (reasoning_effort if reasoning_effort is defined and reasoning_effort in ['low', 'high'] else 'max') -%}"
 OLD_GENERATION = """{%- if add_generation_prompt -%}
@@ -57,11 +64,10 @@ def atomic_write(path: Path, data: bytes) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("model_dir", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--remove", action="store_true")
     args = parser.parse_args()
-    source = args.model_dir / "chat_template.jinja"
+    source = SOURCE_TEMPLATE
     output = args.output
 
     if args.remove:
@@ -70,7 +76,7 @@ def main() -> None:
         if output.is_symlink() or not output.is_file():
             raise SystemExit(f"Refusing unsafe output: {output}")
         current = digest(output.read_bytes())
-        if current != AFTER_SHA256:
+        if current != AFTER_SHA256 and current not in REPLACEABLE_OUTPUT_SHA256S:
             raise SystemExit(f"Refusing to remove unknown output: {current}")
         output.unlink()
         return
@@ -91,7 +97,8 @@ def main() -> None:
         if existing == AFTER_SHA256:
             print(f"already_derived={output} sha256={existing}")
             return
-        raise SystemExit(f"Refusing unknown existing output: {existing}")
+        if existing not in REPLACEABLE_OUTPUT_SHA256S:
+            raise SystemExit(f"Refusing unknown existing output: {existing}")
     atomic_write(output, derived)
     print(f"derived={output} sha256={AFTER_SHA256}")
 

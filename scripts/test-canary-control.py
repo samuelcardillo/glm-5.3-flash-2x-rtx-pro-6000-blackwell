@@ -319,6 +319,21 @@ class RunCanaryTests(unittest.TestCase):
         self.assertTrue(artifact.is_file())
         self.assertEqual(artifact.stat().st_mode & 0o777, 0o600)
 
+    def test_wildcard_control_bind_restores_through_loopback_readiness(self) -> None:
+        text = self.control.read_text().replace(
+            "BIND_ADDRESS=127.0.0.1", "BIND_ADDRESS=0.0.0.0"
+        )
+        self.control.write_text(text)
+        result = self.run_canary(self.check_ok)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        events = self.log.read_text().splitlines()
+        self.assertTrue(
+            any(
+                line.startswith("wait --base-url http://127.0.0.1:8000")
+                for line in events
+            )
+        )
+
     def test_failed_checks_still_restore_control(self) -> None:
         result = self.run_canary(self.check_fail)
         self.assertEqual(result.returncode, 7)

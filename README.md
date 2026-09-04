@@ -110,7 +110,7 @@ Preflight validates immutable pins, 16 target shards and exact byte total, DFlas
 scripts/serve.sh
 ```
 
-The launcher automatically derives a hash-pinned chat template into `CACHE_DIR`; it never mutates the model snapshot. The derived template makes thinking-off requests produce clean final content while preserving explicit reasoning modes.
+The launcher automatically derives a hash-pinned chat template into `CACHE_DIR`; it never mutates the model snapshot. Its source is Z.ai's official Flash template at immutable revision `a5b45eb41df6402735dedc900be14a42e8d5e538`, including the tool-result reordering early-exit fix. The derivation changes only the two thinking-control expressions so thinking-off requests produce clean final content while preserving explicit reasoning modes.
 
 Startup intentionally performs extensive graph and kernel warmup. Do not treat `/health` alone as release readiness; wait for Docker health to become `healthy` or use `scripts/wait-ready.py`.
 
