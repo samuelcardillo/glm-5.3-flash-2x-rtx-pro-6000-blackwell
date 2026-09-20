@@ -11,6 +11,8 @@ This recipe treats the base model, quantized target, speculative drafter, runtim
 | Runtime source recorded by image | `d6fbe22…` |
 | Runtime OCI index | `sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b` |
 | Runtime amd64 manifest | `sha256:4858ebd…` |
+| DFlash/DCP qualified-image source | `/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py`; embedded SPDX license `Apache-2.0`; original `sha256:87d359028d57eb883849b8d8b03a1f7486c8e1ed5473328564629f8146ac56ed` |
+| Independently derived correction | patched `sha256:84aaa80af64c91076422f0f8aa1e859d61c797c4212095fc0a2d73bde873f781`; exact transformation published in `overlays/dflash-dcp-block-table/patch-model-runner.py` |
 | B12x fork in v0.6 image | `tpurtell/sparkinfer-glmrt@611ffe8…` |
 | DFlash vLLM delta | `b389ac2…` |
 | EXL3/vLLM fork lineage | `30038602b71395f481ef4a6edfe4fcf8551d9c15` |
@@ -88,6 +90,7 @@ Hardware facts are intentionally stated by class without publishing UUIDs, PCI a
 - Seven-case semantic content suite: 7/7 pass; 39.30% aggregate DFlash acceptance
 - Official template tool-result sorting/fallback and thinking-control render checks: pass
 - Updated-template live text, structured tool, semantic vision, 16-image, image-17 rejection, and exact 1M retrieval checks: pass
+- Corrected DFlash/DCP overlay: exact 540,000-token six-needle retrieval passed; DFlash drafted 175 and accepted 119 tokens during the request, beyond the former 524,288-position boundary
 - Candidate teardown and restoration of `overlord-testing` at 1,048,576 tokens: pass
 
 See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for metric definitions and limitations.

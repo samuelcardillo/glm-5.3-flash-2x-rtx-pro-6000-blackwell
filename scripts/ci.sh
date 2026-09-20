@@ -6,8 +6,12 @@ python3 -m py_compile "$ROOT"/scripts/*.py
 python3 -m json.tool "$ROOT/examples/zcode-config.fragment.json" >/dev/null
 "$ROOT/scripts/test-config-parser.sh"
 "$ROOT/scripts/test-v06-profile.sh"
+python3 "$ROOT/scripts/test-dflash-dcp-overlay.py"
 "$ROOT/scripts/test-resolve-model-mount.sh"
 python3 "$ROOT/scripts/test-repetition-verifier.py"
+python3 "$ROOT/scripts/test-tool-loop-guard.py"
+python3 "$ROOT/scripts/test-tool-loop-proxy-http.py"
+bash "$ROOT/scripts/test-container-lifecycle.sh"
 python3 "$ROOT/scripts/test-canary-control.py"
 python3 "$ROOT/scripts/test-thinking-template.py"
 python3 "$ROOT/scripts/test-dflash-benchmark.py"

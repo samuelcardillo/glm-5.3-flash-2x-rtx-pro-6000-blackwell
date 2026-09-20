@@ -11,11 +11,31 @@ IFS=',' read -r _gpu_a _gpu_b <<< "$GPU_DEVICES"
 [[ "$CONTAINER_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || { echo 'Invalid CONTAINER_NAME' >&2; return 2; }
 [[ "$SERVED_MODEL_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]*$ ]] || { echo 'Invalid SERVED_MODEL_NAME' >&2; return 2; }
 _base_runtime_image='ghcr.io/tpurtell/glm-5.3-flash-exl3-4bpw-2x-rtx:v0.6.0@sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b'
-[[ "$RUNTIME_IMAGE" == "$_base_runtime_image" ]] || { echo 'RUNTIME_IMAGE must be the qualified immutable v0.6.0 digest' >&2; return 2; }
-for _v in PORT MAX_MODEL_LEN MAX_NUM_BATCHED_TOKENS MAX_NUM_SEQS MAX_IMAGES_PER_PROMPT MAX_VIDEOS_PER_PROMPT DFLASH_TOKENS DECODE_CONTEXT_PARALLEL_SIZE; do
+_base_runtime_id='sha256:fe249b88d091430d8a88cd987d087d556053f0f067a649f2e9ca95895129e82b'
+_overlay_recipe_sha256='a9edc75da46621a05361ef42dd4ebfe7681eeb65566a1c2ae207757e3896101b'
+if [[ "$RUNTIME_IMAGE" == "$_base_runtime_image" ]]; then
+  [[ "$MAX_MODEL_LEN" =~ ^[0-9]+$ ]] && (( MAX_MODEL_LEN <= 524288 )) || {
+    echo 'The unpatched base image is limited to MAX_MODEL_LEN<=524288; build the qualified DFlash/DCP overlay for longer contexts' >&2
+    return 2
+  }
+else
+  [[ "$RUNTIME_IMAGE" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo 'RUNTIME_IMAGE must be the qualified base digest or an immutable image ID' >&2; return 2; }
+  _resolved_image_id=$(docker image inspect "$RUNTIME_IMAGE" --format '{{.Id}}') || { echo 'RUNTIME_IMAGE is not locally available' >&2; return 2; }
+  [[ "$_resolved_image_id" == "$RUNTIME_IMAGE" ]] || { echo 'RUNTIME_IMAGE did not resolve to its exact image ID' >&2; return 2; }
+  _overlay_base=$(docker image inspect "$RUNTIME_IMAGE" --format '{{index .Config.Labels "org.nous.glm53.base-image-id"}}')
+  _overlay_name=$(docker image inspect "$RUNTIME_IMAGE" --format '{{index .Config.Labels "org.nous.glm53.overlay"}}')
+  _overlay_recipe=$(docker image inspect "$RUNTIME_IMAGE" --format '{{index .Config.Labels "org.nous.glm53.overlay-recipe-sha256"}}')
+  [[ "$_overlay_base" == "$_base_runtime_id" && "$_overlay_name" == dflash-dcp-block-table && "$_overlay_recipe" == "$_overlay_recipe_sha256" ]] || {
+    echo 'RUNTIME_IMAGE overlay provenance labels do not match the qualified DFlash/DCP fix' >&2
+    return 2
+  }
+fi
+for _v in PORT UPSTREAM_PORT MAX_MODEL_LEN MAX_NUM_BATCHED_TOKENS MAX_NUM_SEQS MAX_IMAGES_PER_PROMPT MAX_VIDEOS_PER_PROMPT DFLASH_TOKENS DECODE_CONTEXT_PARALLEL_SIZE; do
   [[ "${!_v}" =~ ^[0-9]+$ ]] || { echo "$_v must be an integer" >&2; return 2; }
 done
 (( PORT>=1 && PORT<=65535 )) || { echo 'PORT must be 1..65535' >&2; return 2; }
+(( UPSTREAM_PORT>=1 && UPSTREAM_PORT<=65535 )) || { echo 'UPSTREAM_PORT must be 1..65535' >&2; return 2; }
+(( UPSTREAM_PORT!=PORT )) || { echo 'UPSTREAM_PORT must differ from PORT' >&2; return 2; }
 (( MAX_MODEL_LEN>=1 && MAX_MODEL_LEN<=1048576 )) || { echo 'MAX_MODEL_LEN must be 1..1048576' >&2; return 2; }
 (( MAX_NUM_BATCHED_TOKENS>=1 && MAX_NUM_BATCHED_TOKENS<=2048 )) || { echo 'MAX_NUM_BATCHED_TOKENS must be 1..2048' >&2; return 2; }
 (( MAX_NUM_SEQS>=1 && MAX_NUM_SEQS<=16 )) || { echo 'MAX_NUM_SEQS must be 1..16' >&2; return 2; }
@@ -26,6 +46,8 @@ done
 for _v in ENABLE_PREFIX_CACHING ENABLE_EXPERT_PARALLEL; do
   [[ "${!_v}" == 0 || "${!_v}" == 1 ]] || { echo "$_v must be 0 or 1" >&2; return 2; }
 done
+[[ "$VLLM_DCP_TOPK_OWNER_MERGE" == 0 ]] || { echo 'Qualified profile requires VLLM_DCP_TOPK_OWNER_MERGE=0' >&2; return 2; }
+[[ "$VLLM_B12X_DCP_TOPK_OWNER_EXCHANGE" == 0 ]] || { echo 'Qualified profile requires VLLM_B12X_DCP_TOPK_OWNER_EXCHANGE=0' >&2; return 2; }
 [[ "$ENABLE_PREFIX_CACHING" == 1 ]] || { echo 'Qualified profile requires prefix caching' >&2; return 2; }
 [[ "$ENABLE_EXPERT_PARALLEL" == 1 ]] || { echo 'Qualified profile requires expert parallelism' >&2; return 2; }
 [[ "$KV_CACHE_DTYPE" == fp8_ds_mla ]] || { echo 'Qualified profile requires KV_CACHE_DTYPE=fp8_ds_mla' >&2; return 2; }
@@ -47,4 +69,4 @@ except ValueError:
 if not 0 < utilization <= 0.950:
     raise SystemExit('GPU_MEMORY_UTILIZATION must be >0 and <=0.950')
 PY
-unset _gpu_a _gpu_b _v _base_runtime_image
+unset _gpu_a _gpu_b _v _base_runtime_image _base_runtime_id _overlay_recipe_sha256 _resolved_image_id _overlay_base _overlay_name _overlay_recipe

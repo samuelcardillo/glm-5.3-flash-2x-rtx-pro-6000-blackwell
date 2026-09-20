@@ -40,6 +40,15 @@ The draft is not bundled or modified. Its restrictions are not superseded by thi
 
 The downstream launcher deliberately changes upstream operational defaults: it selects exactly two GPUs, restricts publication to a configured private/loopback address, pins the image digest, disables ReplaySSM, defaults thinking off, validates configuration as data, and delegates lifecycle ownership to systemd or the foreground process. Its derived template modifies the official template only to make thinking opt-out explicit.
 
+### Independently derived DFlash/DCP block-table correction
+
+- Qualified target: `/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py` inside the pinned runtime image
+- Target file license: `SPDX-License-Identifier: Apache-2.0`, with `SPDX-FileCopyrightText: Copyright contributors to the vLLM project`
+- Qualified base-image file SHA-256: `87d359028d57eb883849b8d8b03a1f7486c8e1ed5473328564629f8146ac56ed`
+- Downstream patched image-file SHA-256: `84aaa80af64c91076422f0f8aa1e859d61c797c4212095fc0a2d73bde873f781`
+
+The correction was independently implemented in this repository from the runtime invariant that a cache declaring one effective DCP shard must retain full global block-table width. It does not copy an implementation from an unlicensed auxiliary source. The transformer fails closed against the exact Apache-2.0 target-file hash and preserves the target file's SPDX notice.
+
 ## Other runtime lineages
 
 - B12x/SparkInfer: Luke Alonso, Local Inference Lab, contributors, and T.J. Purtell's GLM fork; Apache-2.0 source lineage.

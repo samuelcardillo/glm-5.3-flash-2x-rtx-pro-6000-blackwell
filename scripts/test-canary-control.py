@@ -146,6 +146,25 @@ class WaitReadyTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("candidate process exited", result.stderr)
 
+    def test_dead_candidate_fails_even_if_named_container_is_healthy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            docker = Path(directory) / "docker"
+            docker.write_text(
+                "#!/bin/sh\n"
+                "printf 'true|healthy\\n'\n"
+            )
+            docker.chmod(0o755)
+            result = subprocess.run(
+                [sys.executable, str(WAIT), "--base-url", self.base,
+                 "--model", "overlord-testing", "--context", "262144",
+                 "--timeout", "5", "--interval", "0.01", "--container", "candidate",
+                 "--process-pid", "99999999"],
+                env={**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"]},
+                text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("candidate process exited", result.stderr)
+
     def test_fails_fast_when_container_exits(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             docker = Path(directory) / "docker"
@@ -271,9 +290,11 @@ class RunCanaryTests(unittest.TestCase):
     def test_service_template_has_exact_readiness_gate(self) -> None:
         template = (ROOT / "systemd" / "glm53-2x-rtxpro6000.service.in").read_text()
         self.assertIn(
-            "ExecStartPost=@REPO_DIR@/scripts/wait-ready.py --base-url http://@READINESS_HOST@:@PORT@ --model @SERVED_MODEL_NAME@ --context @MAX_MODEL_LEN@ --timeout 1800 --container @CONTAINER_NAME@",
+            "ExecStartPost=@REPO_DIR@/scripts/wait-ready.py --base-url http://@READINESS_HOST@:@PORT@ --model @SERVED_MODEL_NAME@ --context @MAX_MODEL_LEN@ --timeout 4200 --container @CONTAINER_NAME@ --process-pid $MAINPID",
             template,
         )
+        self.assertIn("TimeoutStopSec=240", template)
+        self.assertIn("_wait_for_child", (ROOT / "scripts" / "serve.sh").read_text())
 
     def test_installer_renders_all_readiness_placeholders(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -282,7 +303,11 @@ class RunCanaryTests(unittest.TestCase):
             home.mkdir()
             binary.mkdir()
             systemctl = binary / "systemctl"
-            systemctl.write_text("#!/bin/sh\nexit 0\n")
+            systemctl.write_text(
+                "#!/bin/sh\n"
+                "case \"$*\" in *'is-active --quiet'*) exit 3;; esac\n"
+                "exit 0\n"
+            )
             systemctl.chmod(0o755)
             result = subprocess.run(
                 ["bash", str(ROOT / "scripts" / "install-user-service.sh")],
@@ -307,6 +332,32 @@ class RunCanaryTests(unittest.TestCase):
         self.assertIn("--base-url http://127.0.0.1:8000", rendered)
         self.assertIn("--model overlord-testing", rendered)
         self.assertIn("--context 1048576", rendered)
+
+    def test_installer_refuses_to_replace_an_active_service(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory) / "home"
+            binary = Path(directory) / "bin"
+            home.mkdir()
+            binary.mkdir()
+            systemctl = binary / "systemctl"
+            systemctl.write_text("#!/bin/sh\nexit 0\n")
+            systemctl.chmod(0o755)
+            result = subprocess.run(
+                ["bash", str(ROOT / "scripts" / "install-user-service.sh")],
+                env={
+                    **os.environ,
+                    "HOME": str(home),
+                    "ENV_FILE": str(self.control),
+                    "PATH": str(binary) + os.pathsep + os.environ["PATH"],
+                },
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            unit = home / ".config" / "systemd" / "user" / "glm53-2x-rtxpro6000.service"
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("active service", result.stderr)
+            self.assertFalse(unit.exists())
 
     def test_success_restores_control_after_checks(self) -> None:
         result = self.run_canary(self.check_ok)

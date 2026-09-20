@@ -15,6 +15,10 @@ case "$BIND_ADDRESS" in
   ::|::1) READINESS_HOST='[::1]' ;;
   *) READINESS_HOST="$BIND_ADDRESS" ;;
 esac
+if systemctl --user is-active --quiet glm53-2x-rtxpro6000.service; then
+  echo 'Refusing to replace an active service. Stop the current service with its installed unit, verify the legacy container is absent, then rerun the installer.' >&2
+  exit 2
+fi
 UNIT_DIR="$HOME/.config/systemd/user"; ENV_DIR="$HOME/.config/glm53-2x-rtxpro6000"
 for path in "$ROOT" "$UNIT_DIR" "$ENV_DIR"; do
   [[ "$path" =~ ^/[A-Za-z0-9._/-]+$ ]] || {

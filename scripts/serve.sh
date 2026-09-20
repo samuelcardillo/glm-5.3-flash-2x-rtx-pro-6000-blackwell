@@ -16,10 +16,9 @@ python3 "$ROOT/scripts/apply-thinking-template.py" "$DERIVED_TEMPLATE"
 if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
   docker pull "$IMAGE"
 fi
-if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
-  [[ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != true ]] || { echo 'Container already running' >&2; exit 1; }
-  docker rm "$CONTAINER_NAME" >/dev/null
-fi
+# shellcheck source=scripts/container-lifecycle.sh
+source "$ROOT/scripts/container-lifecycle.sh"
+prepare_owned_container
 # shellcheck source=scripts/resolve-model-mount.sh
 source "$ROOT/scripts/resolve-model-mount.sh"
 resolve_model_mount "$MODEL_DIR" model
@@ -27,17 +26,20 @@ MODEL_MOUNT_SOURCE=$MOUNT_SOURCE; MODEL_MOUNT_TARGET=$MOUNT_TARGET; MODEL_CONTAI
 resolve_model_mount "$DRAFT_DIR" draft
 DRAFT_MOUNT_SOURCE=$MOUNT_SOURCE; DRAFT_MOUNT_TARGET=$MOUNT_TARGET; DRAFT_CONTAINER_PATH=$CONTAINER_MODEL_PATH
 SPEC_CONFIG=$(python3 -c 'import json,sys; print(json.dumps({"method":"dflash","model":sys.argv[1],"num_speculative_tokens":int(sys.argv[2]),"kv_cache_dtype":sys.argv[3]},separators=(",",":")))' "$DRAFT_CONTAINER_PATH" "$DFLASH_TOKENS" "$DFLASH_KV_CACHE_DTYPE")
-exec docker run --rm --name "$CONTAINER_NAME" --init \
-  --gpus "\"device=${GPU_DEVICES}\"" --ipc=host --shm-size 32g --publish "${BIND_ADDRESS}:${PORT}:8001" \
+docker run --rm --name "$CONTAINER_NAME" --init \
+  --cidfile "$CID_FILE" --label "${MANAGED_LABEL_KEY}=${MANAGED_LABEL_VALUE}" \
+  --gpus "\"device=${GPU_DEVICES}\"" --ipc=host --shm-size 32g --publish "127.0.0.1:${UPSTREAM_PORT}:8001" \
   --env HF_HUB_OFFLINE=1 --env CUDA_DEVICE_ORDER=PCI_BUS_ID --env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
   --env NCCL_DEBUG="$NCCL_DEBUG" --env VLLM_ENGINE_READY_TIMEOUT_S=3600 \
   --env GLM53_STARTUP_WARMUP=1 --env GLM53_STARTUP_WARMUP_TIMEOUT_S=1800 \
   --env VLLM_ADAPTIVE_MTP=0 \
+  --env VLLM_DCP_TOPK_OWNER_MERGE="$VLLM_DCP_TOPK_OWNER_MERGE" \
+  --env VLLM_B12X_DCP_TOPK_OWNER_EXCHANGE="$VLLM_B12X_DCP_TOPK_OWNER_EXCHANGE" \
   --env VLLM_ENABLE_PCIE_ALLREDUCE=1 --env VLLM_PCIE_ALLREDUCE_BACKEND=b12x --env VLLM_PCIE_ONESHOT_ALLREDUCE_MAX_SIZE=384KB \
   --env VLLM_B12X_PCIE_EAGER=0 --env VLLM_B12X_DCP_A2A=1 \
   --env VLLM_USE_B12X_SPARSE_INDEXER=1 --env VLLM_USE_B12X_KPOOL_INDEXER=1 \
-  --env VLLM_DCP_GLOBAL_TOPK=1 --env VLLM_DCP_QUERY_SPLIT=0 --env VLLM_DCP_TOPK_OWNER_MERGE=1 \
-  --env VLLM_B12X_DCP_TOPK_OWNER_EXCHANGE=1 --env VLLM_B12X_DCP_TOPK_MIN_ROWS=128 \
+  --env VLLM_DCP_GLOBAL_TOPK=1 --env VLLM_DCP_QUERY_SPLIT=0 \
+  --env VLLM_B12X_DCP_TOPK_MIN_ROWS=128 \
   --env VLLM_B12X_DCP_TOPK_MAX_ROWS="$MAX_NUM_BATCHED_TOKENS" --env KV_FP8_ROPE=0 --env VLLM_NVFP4_MLA_DYNAMIC_SCALE=0 \
   --env VLLM_EXL3_TRELLIS_MIN_M=1 --env VLLM_EXL3_TRELLIS_MAX_M=32 --env VLLM_EXL3_TRELLIS_BLOCK_M=8 \
   --env VLLM_EXL3_PREFILL_TRELLIS=1 --env VLLM_EXL3_PREFILL_BLOCK_M=64 --env VLLM_EXL3_PREFILL_CAPACITY=1024 \
@@ -55,4 +57,46 @@ exec docker run --rm --name "$CONTAINER_NAME" --init \
   --max-num-seqs "$MAX_NUM_SEQS" --max-cudagraph-capture-size 96 \
   --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" --kv-cache-dtype "$KV_CACHE_DTYPE" \
   --no-enable-flashinfer-autotune --default-chat-template-kwargs '{"enable_thinking":false}' \
-  --enable-auto-tool-choice --tool-call-parser glm47 --reasoning-parser glm45 --chat-template /config/chat_template.jinja
+  --enable-auto-tool-choice --tool-call-parser glm47 --reasoning-parser glm45 --chat-template /config/chat_template.jinja &
+ENGINE_PID=$!
+
+python3 "$ROOT/scripts/tool-loop-guard.py" \
+  --bind "$BIND_ADDRESS" --port "$PORT" \
+  --upstream "http://127.0.0.1:${UPSTREAM_PORT}" &
+GUARD_PID=$!
+
+_stopping=0
+_wait_for_child() {
+  local pid=$1 deadline=$((SECONDS + 20))
+  while kill -0 "$pid" 2>/dev/null && (( SECONDS < deadline )); do sleep 0.2; done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -TERM "$pid" 2>/dev/null || true
+    deadline=$((SECONDS + 5))
+    while kill -0 "$pid" 2>/dev/null && (( SECONDS < deadline )); do sleep 0.2; done
+  fi
+  if kill -0 "$pid" 2>/dev/null; then kill -KILL "$pid" 2>/dev/null || true; fi
+  wait "$pid" 2>/dev/null || true
+}
+
+cleanup() {
+  local status=$? cleanup_status=0
+  trap - EXIT INT TERM
+  _stopping=1
+  if kill -0 "$GUARD_PID" 2>/dev/null; then kill -INT "$GUARD_PID" 2>/dev/null || true; fi
+  stop_owned_container || cleanup_status=1
+  _wait_for_child "$GUARD_PID"
+  _wait_for_child "$ENGINE_PID"
+  if (( status == 0 && cleanup_status != 0 )); then status=$cleanup_status; fi
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+set +e
+wait -n "$ENGINE_PID" "$GUARD_PID"
+_child_status=$?
+set -e
+if (( _stopping == 0 )); then
+  echo "GLM service child exited unexpectedly (status=${_child_status})" >&2
+  exit 1
+fi
