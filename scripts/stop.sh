@@ -6,7 +6,9 @@ if [[ -f "$ENV_FILE" ]]; then
   # shellcheck source=scripts/load-env.sh
   source "$ROOT/scripts/load-env.sh"
 fi
-CONTAINER_NAME="${CONTAINER_NAME:-glm53-flash-2x-rtxpro6000}"
-if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
-  docker stop --timeout 30 "$CONTAINER_NAME"
-fi
+# shellcheck source=scripts/defaults.sh
+source "$ROOT/scripts/defaults.sh"
+mkdir -p "$CACHE_DIR"
+# shellcheck source=scripts/container-lifecycle.sh
+source "$ROOT/scripts/container-lifecycle.sh"
+stop_owned_container

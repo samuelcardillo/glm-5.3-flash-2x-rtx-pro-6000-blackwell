@@ -84,8 +84,9 @@ def container_state(name: str) -> str:
             text=True,
             capture_output=True,
             check=False,
+            timeout=10,
         )
-    except FileNotFoundError:
+    except (FileNotFoundError, subprocess.TimeoutExpired):
         return "docker-unavailable"
     if result.returncode == 127:
         return "docker-unavailable"
@@ -118,6 +119,9 @@ def main() -> int:
     deadline = time.monotonic() + args.timeout
     container_seen = False
     while True:
+        if args.process_pid is not None and not process_running(args.process_pid):
+            print("candidate process exited before readiness", file=sys.stderr)
+            return 1
         container_ok = args.container is None
         if args.container:
             state = container_state(args.container)
@@ -135,11 +139,11 @@ def main() -> int:
                 # A configured healthcheck is the release-warmup gate. Containers
                 # without one retain legacy running-state behavior.
                 container_ok = state in ("running", "healthy")
-            elif args.process_pid is not None and not process_running(args.process_pid):
-                print("candidate process exited before container readiness", file=sys.stderr)
-                return 1
         try:
             if container_ok and ready(args.base_url, args.model, args.context):
+                if args.process_pid is not None and not process_running(args.process_pid):
+                    print("candidate process exited before readiness", file=sys.stderr)
+                    return 1
                 print(f"READY model={args.model} context={args.context}")
                 return 0
         except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError):

@@ -25,7 +25,8 @@ Qualified on a mixed pair consisting of one RTX PRO 6000 Blackwell Max-Q 96GB an
 - Thinking off by default, with explicit opt-in retained
 - ReplaySSM absent
 - Exact one-million-token six-needle retrieval: 6/6 in 284.859 seconds
-- Repetition regression: 80/80 requests, zero loops and zero errors
+- Same-response repetition regression: 80/80 requests, zero loops and zero errors
+- Cross-turn failed-tool guard: two identical failed call/result cycles arm the guard; an exact third generated call is never returned to the client
 - Seven-case semantic content suite: 7/7 pass; 39.30% aggregate DFlash acceptance
 - Control deployment restored and verified after the disruptive canary
 
@@ -96,7 +97,25 @@ ACCEPT_DFLASH2_RESEARCH_LICENSE=1 scripts/download-model.sh \
 
 The downloader writes `RECIPE_PIN.txt` only after both pinned downloads complete.
 
-### 3. Preflight
+### 3. Build the qualified long-context runtime overlay
+
+The pinned v0.6 image needs a source-exact DFlash/DCP block-table correction for
+replicated drafter caches beyond 524,288 positions. Build the derivative image
+locally and copy the reported immutable `image_id` into `.env` as
+`RUNTIME_IMAGE`:
+
+```bash
+scripts/build-dflash-dcp-overlay.sh
+# Example receipt: image_id=sha256:...
+```
+
+The builder refuses source drift, pins the parent image ID and recipe hash in
+OCI labels, and verifies the patched source inside the completed image without
+network access. `scripts/validate-config.sh` accepts the pinned base image only at
+`MAX_MODEL_LEN<=524288`; longer contexts require a locally available derivative
+carrying those exact provenance labels.
+
+### 4. Preflight
 
 ```bash
 scripts/preflight.sh
@@ -104,7 +123,7 @@ scripts/preflight.sh
 
 Preflight validates immutable pins, 16 target shards and exact byte total, DFlash2 architecture/size, profile boundaries, runtime image, GPU class/memory, exact two-device selection, and P2P read access.
 
-### 4. Launch
+### 5. Launch
 
 ```bash
 scripts/serve.sh
@@ -112,9 +131,11 @@ scripts/serve.sh
 
 The launcher automatically derives a hash-pinned chat template into `CACHE_DIR`; it never mutates the model snapshot. Its source is Z.ai's official Flash template at immutable revision `a5b45eb41df6402735dedc900be14a42e8d5e538`, including the tool-result reordering early-exit fix. The derivation changes only the two thinking-control expressions so thinking-off requests produce clean final content while preserving explicit reasoning modes.
 
+The public API is served by `scripts/tool-loop-guard.py`; vLLM itself is published only on loopback `UPSTREAM_PORT` (default `18001`). The default is intentionally omitted from `config/example.env` so default-generated environments remain compatible with the preceding strict parser during rollback. If you set a custom `UPSTREAM_PORT`, remove that line before rolling back to a release that predates the loop guard. Tool-enabled chat-completion requests receive a minimum repetition penalty of `1.05`; ordinary chats retain their requested sampling parameters. After two identical failed tool calls with unchanged results since the latest user turn, the guarded continuation uses `1.10` and must select a materially different action. If the model still emits the same call, the proxy replaces only the offending choice with a terminal `LOOP_GUARD` response and logs only a short signature hash, never the raw command or prompt. Normal streaming requests remain streaming pass-through. Armed streams are buffered up to 64 MiB for fail-closed inspection; safe alternate streams are returned byte-for-byte. Proxy requests are capped at 128 MiB, request-body reads at 30 seconds, and concurrency at 16.
+
 Startup intentionally performs extensive graph and kernel warmup. Do not treat `/health` alone as release readiness; wait for Docker health to become `healthy` or use `scripts/wait-ready.py`.
 
-### 5. Verify
+### 6. Verify
 
 ```bash
 python3 scripts/verify.py --base-url http://127.0.0.1:8000 --model glm-5.3-flash-local
@@ -124,7 +145,7 @@ python3 scripts/verify-multi-needle.py --base-url http://127.0.0.1:8000 --model 
 
 The vision verifier sends 1, 4, and 16 generated numbered images and requires the exact ordered values, then requires image 17 to be rejected. The long-context verifier constructs exactly 1,000,000 server-tokenized prompt tokens and retrieves six records placed at 5%, 25%, 50%, 75%, 95%, and 99%.
 
-### 6. Benchmark
+### 7. Benchmark
 
 ```bash
 python3 scripts/benchmark-dflash2.py \
@@ -147,11 +168,24 @@ scripts/install-user-service.sh
 systemctl --user start glm53-2x-rtxpro6000.service
 ```
 
+For an in-place upgrade, stop the existing service before running the installer.
+The installer refuses to overwrite an active unit so the old supervisor gets the
+opportunity to drain its attached container with the old lifecycle code:
+
+```bash
+systemctl --user stop glm53-2x-rtxpro6000.service
+docker inspect glm53-v06-production >/dev/null 2>&1 && echo 'container still exists'
+scripts/install-user-service.sh
+systemctl --user start glm53-2x-rtxpro6000.service
+```
+
 For disruptive candidate testing, `scripts/run-canary.sh` prevalidates profiles, traps `EXIT`, `INT`, `TERM`, and `HUP`, removes the candidate, restarts the original service, and verifies its exact alias/context. Restoration failure overrides the test status.
+
+The installed service supervises vLLM and the loop guard as one unit. If either child exits unexpectedly, the other is stopped and systemd restarts the complete stack. Docker publishes the inference server only on `127.0.0.1:UPSTREAM_PORT`; clients continue to use `BIND_ADDRESS:PORT` exactly as before. Container cleanup is tied to an immutable CID and ownership label, uses bounded Docker calls with a kill fallback, and refuses to stop an unrelated name collision.
 
 ## API exposure
 
-The endpoint is unauthenticated and loopback-only by default. For remote use, bind only to a specific trusted LAN/Tailnet address or place an authenticated gateway such as LiteLLM in front. Never expose it directly to the public Internet.
+The endpoint is unauthenticated and loopback-only by default. The guard provides protocol compatibility and tool-loop safety, not authentication or TLS. For remote use, bind only to a specific trusted LAN/Tailnet address or restrict a wildcard bind with host/network firewall rules. Internet-facing access belongs behind an authenticated gateway such as LiteLLM. Never expose port 8000 directly to the public Internet.
 
 ## Reproducibility and privacy
 
