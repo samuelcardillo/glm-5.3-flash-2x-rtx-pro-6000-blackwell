@@ -576,7 +576,7 @@ class GuardingProxyHandler(BaseHTTPRequestHandler):
             connection.request(self.command, self.path, headers=self._request_headers())
             upstream = connection.getresponse()
             self._send_headers(upstream.status, upstream.getheaders())
-            while chunk := upstream.read(64 * 1024):
+            while chunk := upstream.read1(64 * 1024):
                 self.wfile.write(chunk)
         except (OSError, http.client.HTTPException) as error:
             self._send_upstream_error(error)
@@ -634,7 +634,7 @@ class GuardingProxyHandler(BaseHTTPRequestHandler):
             upstream = connection.getresponse()
             if not state.armed or upstream.status < 200 or upstream.status >= 300:
                 self._send_headers(upstream.status, upstream.getheaders())
-                while chunk := upstream.read(64 * 1024):
+                while chunk := upstream.read1(64 * 1024):
                     self.wfile.write(chunk)
                 return
 

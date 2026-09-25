@@ -45,6 +45,32 @@ class FakeUpstreamHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+class SlowStreamUpstreamHandler(BaseHTTPRequestHandler):
+    """Chunked SSE upstream that holds the rest of the stream until released."""
+
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, format: str, *args):
+        return
+
+    def _chunk(self, data: bytes) -> None:
+        self.wfile.write(b"%x\r\n%s\r\n" % (len(data), data))
+        self.wfile.flush()
+
+    def do_POST(self):  # noqa: N802
+        length = int(self.headers["Content-Length"])
+        self.rfile.read(length)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Transfer-Encoding", "chunked")
+        self.end_headers()
+        self._chunk(self.server.first_event)  # type: ignore[attr-defined]
+        self.server.release.wait(10)  # type: ignore[attr-defined]
+        self._chunk(self.server.rest)  # type: ignore[attr-defined]
+        self.wfile.write(b"0\r\n\r\n")
+        self.wfile.flush()
+
+
 class ProxyHttpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -198,6 +224,46 @@ class ProxyHttpTests(unittest.TestCase):
         )
         self.assertEqual(body, safe)
         self.assertEqual(headers.get("Content-Type"), "text/event-stream")
+
+
+    def test_unarmed_stream_is_forwarded_incrementally(self):
+        upstream = ThreadingHTTPServer(("127.0.0.1", 0), SlowStreamUpstreamHandler)
+        upstream.first_event = b'data: {"choices":[{"index":0,"delta":{"content":"a"}}]}\n\n'
+        upstream.rest = b'data: {"choices":[{"index":0,"delta":{"content":"b"}}]}\n\ndata: [DONE]\n\n'
+        upstream.release = threading.Event()
+        threading.Thread(target=upstream.serve_forever, daemon=True).start()
+        proxy = self.guard.GuardingProxyServer(
+            ("127.0.0.1", 0), f"http://127.0.0.1:{upstream.server_port}", 10
+        )
+        threading.Thread(target=proxy.serve_forever, daemon=True).start()
+        try:
+            body = json.dumps({
+                "model": "overlord-testing",
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": True,
+            }).encode()
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", proxy.server_port, timeout=3
+            )
+            connection.request(
+                "POST", "/v1/chat/completions", body=body,
+                headers={"Content-Type": "application/json"},
+            )
+            response = connection.getresponse()
+            # The upstream is still holding the rest of the stream, so the
+            # first event must already have been forwarded.
+            first = response.readline() + response.readline()
+            self.assertFalse(upstream.release.is_set())
+            self.assertEqual(first, upstream.first_event)
+            upstream.release.set()
+            self.assertEqual(response.read(), upstream.rest)
+            connection.close()
+        finally:
+            upstream.release.set()
+            proxy.shutdown()
+            proxy.server_close()
+            upstream.shutdown()
+            upstream.server_close()
 
     def test_split_repeated_stream_is_blocked_and_usage_is_preserved(self):
         self.upstream.response_body = self.stream_for(  # type: ignore[attr-defined]
